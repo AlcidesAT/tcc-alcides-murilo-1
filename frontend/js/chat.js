@@ -1,11 +1,12 @@
 /**
- * Painel de chat (lado direito).
+ * Painel de conversa (estilo ChatGPT).
  *
  * Responsável por:
- *  - Manter o seletor de escopo: pasta + artigo (artigo só aparece se há >1)
+ *  - Seletor de escopo: assunto + artigo (artigo só aparece se há >1)
  *  - Enviar a pergunta ao backend (com os filtros escolhidos)
- *  - Exibir mensagens, indicador de digitação, fontes recuperadas e a tag
- *    de escopo aplicada à resposta
+ *  - Renderizar mensagens em linhas (usuário à direita em balão, assistente
+ *    à esquerda com avatar e texto pleno), indicador de digitação e fontes
+ *  - Estado inicial (hero), "Nova conversa" e recolher/abrir a sidebar
  */
 
 import * as api from "./api.js";
@@ -18,18 +19,51 @@ const messagesEl = document.getElementById("messages");
 const askForm = document.getElementById("ask-form");
 const questionEl = document.getElementById("question");
 const askBtn = document.getElementById("ask-btn");
+const emptyState = document.getElementById("empty-state");
+const newChatBtn = document.getElementById("new-chat-btn");
+const collapseBtn = document.getElementById("collapse-btn");
+const openSidebarBtn = document.getElementById("open-sidebar-btn");
+const appEl = document.getElementById("app");
 
 let documentsByFolder = {};
 
 export function initChat() {
     scopeFolder.addEventListener("change", () => updateArticleOptions(""));
     askForm.addEventListener("submit", handleSubmit);
+
     questionEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             askForm.requestSubmit();
         }
     });
+    questionEl.addEventListener("input", autoResize);
+
+    newChatBtn.addEventListener("click", newConversation);
+
+    collapseBtn.addEventListener("click", () => appEl.classList.add("sidebar-hidden"));
+    openSidebarBtn.addEventListener("click", () => appEl.classList.remove("sidebar-hidden"));
+
+    document.querySelectorAll(".suggestion").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            questionEl.value = btn.textContent;
+            autoResize();
+            questionEl.focus();
+        });
+    });
+}
+
+function autoResize() {
+    questionEl.style.height = "auto";
+    questionEl.style.height = Math.min(questionEl.scrollHeight, 200) + "px";
+}
+
+function newConversation() {
+    messagesEl.innerHTML = "";
+    emptyState.hidden = false;
+    questionEl.value = "";
+    autoResize();
+    questionEl.focus();
 }
 
 export function updateScopeSelectors({ folders, documentsByFolder: dbf }) {
@@ -38,16 +72,14 @@ export function updateScopeSelectors({ folders, documentsByFolder: dbf }) {
     const prevFolder = scopeFolder.value;
     const prevArticle = scopeArticle.value;
 
-    scopeFolder.innerHTML = '<option value="">Todas as pastas</option>';
+    scopeFolder.innerHTML = '<option value="">Todos os assuntos</option>';
     folders.forEach((f) => {
         const opt = document.createElement("option");
         opt.value = f.folder;
-        opt.textContent = `${f.folder} (${f.documents} doc.)`;
+        opt.textContent = `${f.folder} (${f.documents} art.)`;
         scopeFolder.appendChild(opt);
     });
-    scopeFolder.value = folders.some((f) => f.folder === prevFolder)
-        ? prevFolder
-        : "";
+    scopeFolder.value = folders.some((f) => f.folder === prevFolder) ? prevFolder : "";
 
     updateArticleOptions(prevArticle);
 }
@@ -66,9 +98,7 @@ function updateArticleOptions(preferred = "") {
 
     if (folder && docs.length > 1) {
         scopeArticleWrap.hidden = false;
-        scopeArticle.value = docs.some((d) => d.source === preferred)
-            ? preferred
-            : "";
+        scopeArticle.value = docs.some((d) => d.source === preferred) ? preferred : "";
     } else {
         scopeArticleWrap.hidden = true;
         scopeArticle.value = "";
@@ -82,51 +112,68 @@ async function handleSubmit(e) {
 
     const folder = scopeFolder.value || null;
     const source =
-        folder && !scopeArticleWrap.hidden && scopeArticle.value
-            ? scopeArticle.value
-            : null;
+        folder && !scopeArticleWrap.hidden && scopeArticle.value ? scopeArticle.value : null;
 
-    appendMessage("user", q);
+    emptyState.hidden = true;
+    appendUser(q);
     questionEl.value = "";
+    autoResize();
     askBtn.disabled = true;
     const typing = appendTyping();
 
     try {
         const data = await api.ask(q, folder, source);
         typing.remove();
-        appendMessage("bot", data.answer, data.sources, data.scope);
+        appendBot(data.answer, data.sources, data.scope);
     } catch (err) {
         typing.remove();
-        appendMessage("bot", `Erro: ${err.message}`);
+        appendBot(`Erro: ${err.message}`);
     } finally {
         askBtn.disabled = false;
         questionEl.focus();
     }
 }
 
-function appendMessage(role, text, sources, scope) {
-    const wrap = document.createElement("div");
-    wrap.className = `msg ${role}`;
+function appendUser(text) {
+    const row = document.createElement("div");
+    row.className = "msg-row user";
     const bubble = document.createElement("div");
-    bubble.className = "bubble";
+    bubble.className = "msg-bubble";
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+}
 
-    if (scope && role === "bot") {
+function appendBot(text, sources, scope) {
+    const row = document.createElement("div");
+    row.className = "msg-row assistant";
+
+    const avatar = document.createElement("div");
+    avatar.className = "msg-avatar";
+    avatar.textContent = "◆";
+
+    const content = document.createElement("div");
+    content.className = "msg-content";
+
+    if (scope) {
         const tag = document.createElement("div");
         tag.className = "scope-tag";
         if (scope === "todas") {
-            tag.textContent = "Escopo: todas as pastas";
+            tag.textContent = "Todos os assuntos";
         } else if (scope.includes(" / ")) {
             const [f, a] = scope.split(" / ");
-            tag.textContent = `Escopo: pasta "${f}" · artigo "${a}"`;
+            tag.textContent = `Assunto: ${f} · Artigo: ${a}`;
         } else {
-            tag.textContent = `Escopo: pasta "${scope}"`;
+            tag.textContent = `Assunto: ${scope}`;
         }
-        bubble.appendChild(tag);
+        content.appendChild(tag);
     }
 
     const body = document.createElement("div");
+    body.className = "msg-text";
     body.textContent = text;
-    bubble.appendChild(body);
+    content.appendChild(body);
 
     if (sources && sources.length) {
         const sBox = document.createElement("div");
@@ -136,32 +183,31 @@ function appendMessage(role, text, sources, scope) {
             sources
                 .map(
                     (s) =>
-                        `<li><b>${escapeHtml(s.folder)} / ${escapeHtml(
-                            s.source
-                        )}</b> (p. ${escapeHtml(String(s.page))}): ${escapeHtml(
-                            s.snippet
-                        )}</li>`
+                        `<li><b>${escapeHtml(s.folder)} / ${escapeHtml(s.source)}</b> ` +
+                        `(p. ${escapeHtml(String(s.page))}): ${escapeHtml(s.snippet)}</li>`
                 )
                 .join("") +
             "</ul>";
-        bubble.appendChild(sBox);
+        content.appendChild(sBox);
     }
 
-    wrap.appendChild(bubble);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return bubble;
+    row.append(avatar, content);
+    messagesEl.appendChild(row);
+    scrollToBottom();
 }
 
 function appendTyping() {
-    const wrap = document.createElement("div");
-    wrap.className = "msg bot";
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.innerHTML =
-        '<div class="typing"><span></span><span></span><span></span></div>';
-    wrap.appendChild(bubble);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return wrap;
+    const row = document.createElement("div");
+    row.className = "msg-row assistant";
+    row.innerHTML =
+        '<div class="msg-avatar">◆</div>' +
+        '<div class="msg-content"><div class="typing"><span></span><span></span><span></span></div></div>';
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+}
+
+function scrollToBottom() {
+    const scroll = document.getElementById("chat-scroll");
+    scroll.scrollTop = scroll.scrollHeight;
 }

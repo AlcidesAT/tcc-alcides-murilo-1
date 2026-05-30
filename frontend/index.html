@@ -7,107 +7,118 @@
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-    <header class="topbar">
-        <div class="brand">
-            <h1>Consulta Inteligente a Artigos Científicos</h1>
-            <p>Sistema baseado em Retrieval-Augmented Generation (RAG)</p>
-        </div>
-    </header>
+    <div class="app" id="app">
+        <!-- ============================ SIDEBAR ============================ -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-head">
+                <button class="new-chat" id="new-chat-btn">
+                    <span class="ic">✎</span> Nova conversa
+                </button>
+                <button class="icon-btn collapse-btn" id="collapse-btn" title="Recolher menu">«</button>
+            </div>
 
-    <main class="layout">
-        <aside class="sidebar">
-            <section class="card">
-                <h2><span class="step-num">1</span> Criar pastas</h2>
-                <p class="hint">
-                    Organize seus artigos por tema. Crie uma pasta por assunto
-                    (ex.: <em>machine-learning</em>, <em>redes-neurais</em>).
-                </p>
+            <div class="sidebar-body">
+                <!-- Assuntos -->
+                <section class="side-section">
+                    <div class="side-section-head">
+                        <span>Assuntos</span>
+                        <button id="refresh-btn" class="icon-btn" title="Atualizar">↻</button>
+                    </div>
 
-                <div class="new-folder-form">
-                    <input
-                        id="new-folder-name"
-                        type="text"
-                        placeholder="Nome da nova pasta"
-                        maxlength="50"
-                    />
-                    <button id="new-folder-save" class="primary">+ Criar pasta</button>
-                </div>
+                    <div class="new-folder-form">
+                        <input id="new-folder-name" type="text" placeholder="Novo assunto…" maxlength="50" />
+                        <button id="new-folder-save" class="mini-btn" title="Criar assunto">+</button>
+                    </div>
 
-                <div class="folder-list-header">
-                    <span>Pastas existentes</span>
-                    <button id="refresh-btn" class="icon-btn" title="Atualizar lista">↻</button>
-                </div>
-                <div id="folder-list" class="folder-list">
-                    <p class="empty">Nenhuma pasta criada ainda.</p>
-                </div>
-            </section>
+                    <div id="folder-list" class="folder-list">
+                        <p class="empty">Nenhum assunto criado ainda.</p>
+                    </div>
+                </section>
 
-            <section class="card">
-                <h2><span class="step-num">2</span> Enviar artigos</h2>
-                <p class="hint">
-                    Escolha a pasta de destino e arraste os artigos (PDF, MD ou TXT).
-                </p>
-                <div class="warning">Máximo de 10 artigos por vez.</div>
+                <!-- Enviar artigos -->
+                <section class="side-section">
+                    <div class="side-section-head">
+                        <span>Enviar artigos</span>
+                    </div>
 
-                <label class="field-label" for="folder-select">Pasta de destino</label>
-                <select id="folder-select" disabled>
-                    <option value="">(crie uma pasta no passo 1)</option>
-                </select>
+                    <select id="folder-select" disabled>
+                        <option value="">(crie um assunto)</option>
+                    </select>
 
-                <label for="file-input" class="file-drop" id="drop-zone">
-                    <span id="drop-text">Clique ou arraste até 10 arquivos aqui</span>
-                    <input id="file-input" type="file" accept=".pdf,.md,.txt" hidden multiple />
-                </label>
+                    <label for="file-input" class="file-drop" id="drop-zone">
+                        <span id="drop-text">Arraste ou clique — PDF, MD, TXT (máx. 10)</span>
+                        <input id="file-input" type="file" accept=".pdf,.md,.txt" hidden multiple />
+                    </label>
 
-                <div id="selected-files" class="selected-files" hidden>
-                    <div class="count" id="selected-count"></div>
-                    <ul id="selected-list"></ul>
-                </div>
+                    <div id="selected-files" class="selected-files" hidden>
+                        <div class="count" id="selected-count"></div>
+                        <ul id="selected-list"></ul>
+                    </div>
 
-                <button id="upload-btn" class="primary" disabled>Indexar artigos</button>
-                <div id="upload-status" class="status"></div>
-            </section>
+                    <button id="upload-btn" class="primary" disabled>Indexar artigos</button>
+                    <div id="upload-status" class="status"></div>
+                </section>
+            </div>
+
+            <div class="sidebar-foot">
+                <div id="user-area" class="user-area"></div>
+            </div>
         </aside>
 
-        <section class="chat">
-            <div class="chat-toolbar">
-                <div class="scope-field">
-                    <label for="scope-folder" class="field-label inline">Pasta:</label>
-                    <select id="scope-folder">
-                        <option value="">Todas as pastas</option>
-                    </select>
-                </div>
-                <div class="scope-field" id="scope-article-wrap" hidden>
-                    <label for="scope-article" class="field-label inline">Artigo:</label>
-                    <select id="scope-article">
-                        <option value="">Todos os artigos</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="messages" class="messages">
-                <div class="msg bot">
-                    <div class="bubble">
-                        Olá! Para começar:
-                        <br/>1. Crie uma pasta no passo 1.
-                        <br/>2. Selecione essa pasta no passo 2 e envie os artigos.
-                        <br/>3. Pergunte aqui — você pode restringir a busca a uma pasta ou
-                        a um artigo específico no seletor acima.
+        <!-- ============================= MAIN ============================= -->
+        <main class="main" id="main">
+            <header class="topbar">
+                <button class="icon-btn open-sidebar" id="open-sidebar-btn" title="Abrir menu">☰</button>
+                <div class="scope-picker">
+                    <label for="scope-folder" class="scope-label">Pesquisar em</label>
+                    <div class="select-wrap">
+                        <select id="scope-folder">
+                            <option value="">Todos os assuntos</option>
+                        </select>
+                    </div>
+                    <div class="select-wrap" id="scope-article-wrap" hidden>
+                        <select id="scope-article">
+                            <option value="">Todos os artigos</option>
+                        </select>
                     </div>
                 </div>
+            </header>
+
+            <div class="chat-scroll" id="chat-scroll">
+                <!-- Estado inicial (estilo ChatGPT) -->
+                <div class="hero" id="empty-state">
+                    <div class="hero-logo">◆</div>
+                    <h2>Em que posso ajudar?</h2>
+                    <p>Pergunte em linguagem natural sobre seus artigos científicos indexados.</p>
+                    <div class="suggestions">
+                        <button class="suggestion">Resuma os principais achados</button>
+                        <button class="suggestion">Qual é a metodologia utilizada?</button>
+                        <button class="suggestion">Quais são as conclusões do artigo?</button>
+                        <button class="suggestion">Liste as referências mais citadas</button>
+                    </div>
+                </div>
+
+                <div id="messages" class="messages"></div>
             </div>
 
-            <form id="ask-form" class="composer">
-                <textarea
-                    id="question"
-                    placeholder="Ex.: Qual é a metodologia utilizada no artigo X?"
-                    rows="2"
-                    required
-                ></textarea>
-                <button type="submit" class="primary" id="ask-btn">Perguntar</button>
-            </form>
-        </section>
-    </main>
+            <div class="composer-wrap">
+                <form id="ask-form" class="composer">
+                    <textarea
+                        id="question"
+                        placeholder="Pergunte sobre seus artigos…"
+                        rows="1"
+                        required
+                    ></textarea>
+                    <button type="submit" class="send-btn" id="ask-btn" title="Enviar" aria-label="Enviar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 19V5M5 12l7-7 7 7"/>
+                        </svg>
+                    </button>
+                </form>
+                <p class="disclaimer">As respostas são geradas a partir dos artigos indexados. Verifique informações importantes.</p>
+            </div>
+        </main>
+    </div>
 
     <script type="module" src="/static/js/app.js"></script>
 </body>

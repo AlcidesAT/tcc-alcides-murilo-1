@@ -43,7 +43,7 @@ export function renderFolders({ folders, documentsByFolder }) {
     if (!folders.length) {
         const p = document.createElement("p");
         p.className = "empty";
-        p.textContent = "Nenhuma pasta criada ainda.";
+        p.textContent = "Nenhum assunto criado ainda.";
         folderListEl.appendChild(p);
         return;
     }
@@ -72,11 +72,12 @@ function buildFolderGroup(folder, docs) {
 
     const meta = document.createElement("span");
     meta.className = "folder-meta";
-    meta.textContent = `${folder.documents} doc · ${folder.chunks} trechos`;
+    meta.textContent = `${folder.documents} art.`;
 
     const del = document.createElement("button");
     del.className = "folder-del";
-    del.textContent = "Excluir pasta";
+    del.textContent = "🗑";
+    del.title = "Excluir assunto";
     del.addEventListener("click", (e) => {
         e.stopPropagation();
         handleDeleteFolder(folder.folder, folder.documents);
@@ -90,7 +91,7 @@ function buildFolderGroup(folder, docs) {
     if (docs.length === 0) {
         const li = document.createElement("li");
         li.className = "empty-folder";
-        li.textContent = "Pasta vazia — selecione-a no passo 2 para enviar artigos.";
+        li.textContent = "Vazio — envie artigos para este assunto.";
         list.appendChild(li);
     }
     docs.forEach((d) => list.appendChild(buildDocItem(d)));
@@ -110,7 +111,8 @@ function buildDocItem(doc) {
     meta.textContent = `${doc.chunks} trechos`;
     const del = document.createElement("button");
     del.className = "del-btn";
-    del.textContent = "Remover";
+    del.textContent = "✕";
+    del.title = "Remover artigo";
     del.addEventListener("click", () => handleDeleteDoc(doc.folder, doc.source));
     li.append(name, meta, del);
     return li;
@@ -146,8 +148,8 @@ async function createFolder() {
 
 async function handleDeleteFolder(name, docCount) {
     const msg = docCount
-        ? `Excluir a pasta "${name}" e seus ${docCount} artigo(s)?\nEsta ação não pode ser desfeita.`
-        : `Excluir a pasta "${name}"?`;
+        ? `Excluir o assunto "${name}" e seus ${docCount} artigo(s)?\nEsta ação não pode ser desfeita.`
+        : `Excluir o assunto "${name}"?`;
     if (!confirm(msg)) return;
     try {
         await api.deleteFolder(name);
@@ -158,7 +160,7 @@ async function handleDeleteFolder(name, docCount) {
 }
 
 async function handleDeleteDoc(folder, source) {
-    if (!confirm(`Remover "${source}" da pasta "${folder}"?`)) return;
+    if (!confirm(`Remover "${source}" do assunto "${folder}"?`)) return;
     try {
         await api.deleteDocument(folder, source);
         await loadFolders();

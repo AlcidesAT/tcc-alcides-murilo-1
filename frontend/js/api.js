@@ -1,15 +1,24 @@
 /**
  * Camada HTTP — concentra todas as chamadas ao backend.
  *
- * Cada função devolve o JSON parseado em caso de sucesso ou lança um Error
- * com a mensagem retornada pelo servidor em caso de falha.
- * Os outros módulos NÃO devem usar `fetch` diretamente — sempre passem por aqui.
+ * Injeta automaticamente o token JWT (quando disponível) no cabeçalho
+ * Authorization de cada requisição.
  */
 
 const API = "";
 
+function getToken() {
+    return localStorage.getItem("auth_token");
+}
+
 async function request(path, options = {}) {
-    const res = await fetch(`${API}${path}`, options);
+    const headers = { ...(options.headers || {}) };
+    const token = getToken();
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API}${path}`, { ...options, headers });
     let data = null;
     try {
         data = await res.json();
@@ -21,6 +30,10 @@ async function request(path, options = {}) {
     }
     return data;
 }
+
+// ---------------------------------------------------------------------------
+// Folders & documents
+// ---------------------------------------------------------------------------
 
 export async function listFolders() {
     const data = await request("/api/folders");
@@ -41,9 +54,7 @@ export async function createFolder(name) {
 }
 
 export async function deleteFolder(folder) {
-    return request(`/api/folders/${encodeURIComponent(folder)}`, {
-        method: "DELETE",
-    });
+    return request(`/api/folders/${encodeURIComponent(folder)}`, { method: "DELETE" });
 }
 
 export async function deleteDocument(folder, source) {
@@ -66,4 +77,28 @@ export async function ask(question, folder, source) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, folder, source }),
     });
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function login(email, password) {
+    return request("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+    });
+}
+
+export async function register(name, email, password) {
+    return request("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+    });
+}
+
+export async function getMe() {
+    return request("/api/auth/me");
 }

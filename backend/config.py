@@ -5,6 +5,7 @@ Centraliza parâmetros do modelo, caminhos de armazenamento e
 hiperparâmetros do pipeline de recuperação.
 """
 
+import os
 import re
 import unicodedata
 from pathlib import Path
@@ -33,6 +34,15 @@ MAX_UPLOAD_MB = 50
 
 DEFAULT_FOLDER = "geral"
 MAX_FOLDER_NAME_LEN = 50
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/artigos_db",
+)
+
+JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24 * 7
 
 
 def slugify_folder(name: str | None) -> str:

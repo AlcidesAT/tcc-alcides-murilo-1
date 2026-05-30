@@ -42,14 +42,14 @@ export function updateFolderSelector({ folders }) {
     if (!folders.length) {
         const opt = document.createElement("option");
         opt.value = "";
-        opt.textContent = "(crie uma pasta no passo 1)";
+        opt.textContent = "(crie um assunto)";
         folderSelect.appendChild(opt);
         folderSelect.disabled = true;
     } else {
         folders.forEach((f) => {
             const opt = document.createElement("option");
             opt.value = f.folder;
-            opt.textContent = `${f.folder} (${f.documents} doc)`;
+            opt.textContent = `${f.folder} (${f.documents} art.)`;
             folderSelect.appendChild(opt);
         });
         folderSelect.disabled = false;
@@ -125,7 +125,7 @@ function renderSelected() {
     if (!selectedFiles.length) {
         selectedBox.hidden = true;
         selectedList.innerHTML = "";
-        dropText.textContent = "Clique ou arraste até 10 arquivos aqui";
+        dropText.textContent = "Arraste ou clique — PDF, MD, TXT (máx. 10)";
         return;
     }
     selectedBox.hidden = false;
@@ -172,7 +172,7 @@ async function handleUpload() {
     if (!selectedFiles.length) return;
     const folder = folderSelect.value;
     if (!folder) {
-        setStatus("Selecione uma pasta de destino.", "error");
+        setStatus("Selecione um assunto de destino.", "error");
         return;
     }
 
