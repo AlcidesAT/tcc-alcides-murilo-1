@@ -7,9 +7,9 @@ venv/
 env/
 *.egg-info/
 
-# Dados gerados em runtime
-data/documents/*
-!data/documents/.gitkeep
+# Os arquivos dos artigos (.md/.pdf/.txt) em data/documents/ SÃO versionados,
+# para que o corpus acompanhe o repositório. O índice vetorial abaixo é
+# recriável (rode `python seed_articles.py`), por isso fica fora do Git.
 data/vectorstore/*
 !data/vectorstore/.gitkeep
 
