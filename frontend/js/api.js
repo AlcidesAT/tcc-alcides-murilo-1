@@ -1,22 +1,11 @@
 /**
  * Camada HTTP — concentra todas as chamadas ao backend.
- *
- * Injeta automaticamente o token JWT (quando disponível) no cabeçalho
- * Authorization de cada requisição.
  */
 
 const API = "";
 
-function getToken() {
-    return localStorage.getItem("auth_token");
-}
-
 async function request(path, options = {}) {
     const headers = { ...(options.headers || {}) };
-    const token = getToken();
-    if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-    }
 
     const res = await fetch(`${API}${path}`, { ...options, headers });
     let data = null;
@@ -79,26 +68,55 @@ export async function ask(question, folder, source) {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-
-export async function login(email, password) {
-    return request("/api/auth/login", {
+/**
+ * Versão em streaming de `ask`. Lê uma resposta NDJSON e chama os callbacks:
+ *   onToken(text)            — a cada pedaço de texto gerado
+ *   onDone(sources, scope)   — ao final, com as fontes e o escopo
+ *   onError(error)           — em caso de erro durante a geração
+ */
+export async function askStream(question, folder, source, { onToken, onDone, onError }) {
+    const res = await fetch("/api/ask/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ question, folder, source }),
     });
-}
 
-export async function register(name, email, password) {
-    return request("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-    });
-}
+    if (!res.ok || !res.body) {
+        let detail = `Erro HTTP ${res.status}`;
+        try {
+            const data = await res.json();
+            detail = data.detail || detail;
+        } catch {
+            /* corpo não-JSON */
+        }
+        throw new Error(detail);
+    }
 
-export async function getMe() {
-    return request("/api/auth/me");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let nl;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+
+            let msg;
+            try {
+                msg = JSON.parse(line);
+            } catch {
+                continue;
+            }
+
+            if (msg.type === "token") onToken?.(msg.text);
+            else if (msg.type === "done") onDone?.(msg.sources, msg.scope);
+            else if (msg.type === "error") onError?.(new Error(msg.detail));
+        }
+    }
 }

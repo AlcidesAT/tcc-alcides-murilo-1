@@ -19,5 +19,8 @@ data/vectorstore/*
 .DS_Store
 Thumbs.db
 
+# Variáveis de ambiente
+.env
+
 # Logs
 *.log

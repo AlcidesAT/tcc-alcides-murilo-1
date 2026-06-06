@@ -10,6 +10,13 @@ import re
 import unicodedata
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # python-dotenv é opcional; segue com as variáveis do ambiente
+    pass
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -25,7 +32,14 @@ EMBEDDING_MODEL = "nomic-embed-text"
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
-RETRIEVAL_K = 4
+
+# Recuperação:
+#  - RETRIEVAL_K: quantos trechos são enviados ao modelo (mais = resposta mais completa).
+#  - MMR_FETCH_K: quantos candidatos a busca examina antes de escolher os K finais.
+#  - MMR_LAMBDA: 0 = máxima diversidade, 1 = máxima relevância (0.5 equilibra os dois).
+RETRIEVAL_K = 8
+MMR_FETCH_K = 24
+MMR_LAMBDA = 0.5
 
 COLLECTION_NAME = "artigos_cientificos"
 
@@ -39,10 +53,6 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:postgres@localhost:5432/artigos_db",
 )
-
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_HOURS = 24 * 7
 
 
 def slugify_folder(name: str | None) -> str:

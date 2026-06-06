@@ -3,10 +3,14 @@ API HTTP do Sistema Inteligente de Consulta a Artigos Científicos.
 
 Expõe endpoints para upload e organização de artigos em pastas,
 consulta em linguagem natural (opcionalmente restrita a uma pasta),
-listagem e remoção de documentos e pastas, autenticação de usuários
-e arquivamento de artigos no PostgreSQL, além de servir o front-end.
+listagem e remoção de documentos e pastas, e arquivamento de artigos
+no PostgreSQL, além de servir o front-end.
+
+Observação: a camada de login/cadastro de usuários será adicionada na
+segunda entrega do TCC.
 """
 
+import json
 import shutil
 import uuid
 from contextlib import asynccontextmanager
@@ -15,7 +19,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -29,9 +33,8 @@ from config import (
     slugify_folder,
 )
 from rag_service import RAGService
-from database import get_db, init_db
-from models import User, Article
-from auth import get_current_user, hash_password, verify_password, create_token
+from database import SessionLocal, get_db, init_db
+from models import Article, Question, QuestionSource
 
 
 @asynccontextmanager
@@ -82,80 +85,6 @@ class CreateFolderRequest(BaseModel):
     name: str
 
 
-class RegisterRequest(BaseModel):
-    name: str
-    email: str
-    password: str
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-# ---------------------------------------------------------------------------
-# Auth endpoints
-# ---------------------------------------------------------------------------
-
-@app.post("/api/auth/register", status_code=201)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    try:
-        name = (payload.name or "").strip()
-        email = (payload.email or "").strip().lower()
-        if not name or not email or not payload.password:
-            raise HTTPException(status_code=400, detail="Nome, e-mail e senha são obrigatórios.")
-        if len(payload.password) < 6:
-            raise HTTPException(status_code=400, detail="Senha deve ter no mínimo 6 caracteres.")
-
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            raise HTTPException(status_code=409, detail="E-mail já cadastrado.")
-
-        user = User(name=name, email=email, password_hash=hash_password(payload.password))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        token = create_token(user.id)
-        return {
-            "token": token,
-            "user": {"id": str(user.id), "name": user.name, "email": user.email},
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Banco de dados indisponível: {exc}") from exc
-
-
-@app.post("/api/auth/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    try:
-        email = (payload.email or "").strip().lower()
-        user = db.query(User).filter(User.email == email).first()
-        if not user or not verify_password(payload.password, user.password_hash):
-            raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
-        token = create_token(user.id)
-        return {
-            "token": token,
-            "user": {"id": str(user.id), "name": user.name, "email": user.email},
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Banco de dados indisponível: {exc}") from exc
-
-
-@app.get("/api/auth/me")
-def get_me(current_user: Optional[User] = Depends(get_current_user)):
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Não autenticado.")
-    return {
-        "id": str(current_user.id),
-        "name": current_user.name,
-        "email": current_user.email,
-        "created_at": current_user.created_at.isoformat(),
-    }
-
-
 # ---------------------------------------------------------------------------
 # Articles archive endpoint
 # ---------------------------------------------------------------------------
@@ -180,7 +109,6 @@ def list_articles(
                     "file_type": a.file_type,
                     "chunks_indexed": a.chunks_indexed,
                     "uploaded_at": a.uploaded_at.isoformat(),
-                    "user_id": str(a.user_id) if a.user_id else None,
                 }
                 for a in articles
             ]
@@ -234,7 +162,6 @@ async def upload_document(
     file: UploadFile = File(...),
     folder: str = Form(DEFAULT_FOLDER),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Arquivo sem nome.")
@@ -278,7 +205,6 @@ async def upload_document(
             file_size=size_bytes,
             file_type=suffix,
             chunks_indexed=chunks_added,
-            user_id=current_user.id if current_user else None,
         )
         db.add(article)
         db.commit()
@@ -326,8 +252,8 @@ def delete_folder(folder: str):
     return {"folder": folder_slug, "chunks_removed": removed}
 
 
-@app.post("/api/ask", response_model=AskResponse)
-def ask(payload: AskRequest):
+def _validate_ask(payload: AskRequest):
+    """Valida a pergunta e o escopo; devolve (question, folder_slug, source)."""
     question = (payload.question or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="Pergunta vazia.")
@@ -344,7 +270,58 @@ def ask(payload: AskRequest):
         raise HTTPException(status_code=404, detail=f"Pasta '{folder_slug}' não existe.")
 
     source = (payload.source or "").strip() or None
+    return question, folder_slug, source
 
+
+def _save_interaction(question: str, folder, answer: str, scope: str, sources: list) -> None:
+    """Persiste a pergunta e os artigos usados para respondê-la.
+
+    Best-effort: qualquer falha (banco indisponível, etc.) é apenas registrada
+    no console e nunca interrompe a resposta ao usuário. Os trechos são
+    agrupados por artigo distinto, juntando os locais citados (ex.: linhas).
+    """
+    try:
+        db = SessionLocal()
+    except Exception as exc:
+        print(f"[WARNING] Não foi possível abrir sessão do banco: {exc}")
+        return
+
+    try:
+        record = Question(question=question, answer=answer, scope=scope, folder=folder)
+
+        grouped: dict = {}
+        for s in sources:
+            key = (s.get("folder"), s.get("source"))
+            entry = grouped.setdefault(key, {"locations": [], "snippet": s.get("snippet", "")})
+            loc = s.get("location")
+            if loc and loc not in entry["locations"]:
+                entry["locations"].append(loc)
+
+        for (fld, art), info in grouped.items():
+            record.sources.append(
+                QuestionSource(
+                    folder=fld,
+                    article=art,
+                    locations=", ".join(info["locations"]),
+                    snippet=info["snippet"],
+                )
+            )
+
+        db.add(record)
+        db.commit()
+    except Exception as exc:
+        print(f"[WARNING] Falha ao salvar pergunta no banco: {exc}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+@app.post("/api/ask", response_model=AskResponse)
+def ask(payload: AskRequest):
+    question, folder_slug, source = _validate_ask(payload)
     try:
         result = rag.ask(question, folder=folder_slug, source=source)
     except Exception as exc:
@@ -356,7 +333,55 @@ def ask(payload: AskRequest):
             ),
         ) from exc
 
+    _save_interaction(
+        question, folder_slug, result["answer"], result["scope"], result["sources"]
+    )
     return result
+
+
+@app.post("/api/ask/stream")
+def ask_stream(payload: AskRequest):
+    """Versão em streaming: emite NDJSON (uma linha JSON por evento).
+
+    Eventos: {"type":"token","text":...} durante a geração e, ao final,
+    {"type":"done","sources":[...],"scope":...}. Erros viram
+    {"type":"error","detail":...}.
+    """
+    question, folder_slug, source = _validate_ask(payload)
+
+    # A recuperação acontece antes do streaming para que falhas (ex.: Ollama
+    # indisponível ao gerar embeddings) retornem um status HTTP adequado.
+    try:
+        docs = rag.retrieve(question, folder=folder_slug, source=source)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Falha ao recuperar trechos. Verifique se o Ollama está em "
+                f"execução e se os modelos foram baixados. Detalhe: {exc}"
+            ),
+        ) from exc
+
+    sources = rag._build_sources(docs)
+    scope = rag._scope_label(folder_slug, source)
+
+    def generate():
+        answer_parts = []
+        try:
+            for token in rag.stream_answer(question, docs):
+                answer_parts.append(token)
+                yield json.dumps({"type": "token", "text": token}, ensure_ascii=False) + "\n"
+        except Exception as exc:
+            yield json.dumps({"type": "error", "detail": str(exc)}, ensure_ascii=False) + "\n"
+            return
+
+        yield json.dumps(
+            {"type": "done", "sources": sources, "scope": scope}, ensure_ascii=False
+        ) + "\n"
+
+        _save_interaction(question, folder_slug, "".join(answer_parts), scope, sources)
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------
@@ -370,10 +395,6 @@ if FRONTEND_DIR.exists():
     @app.get("/")
     def root():
         return FileResponse(str(FRONTEND_DIR / "index.html"))
-
-    @app.get("/login")
-    def login_page():
-        return FileResponse(str(FRONTEND_DIR / "login.html"))
 
 
 if __name__ == "__main__":

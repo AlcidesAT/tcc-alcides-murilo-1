@@ -21,6 +21,8 @@ from config import (
     DEFAULT_FOLDER,
     EMBEDDING_MODEL,
     LLM_MODEL,
+    MMR_FETCH_K,
+    MMR_LAMBDA,
     OLLAMA_BASE_URL,
     RETRIEVAL_K,
     VECTORSTORE_DIR,
@@ -29,11 +31,15 @@ from document_processor import load_and_split
 
 
 PROMPT_TEMPLATE = """Você é um assistente especializado em responder perguntas sobre artigos científicos.
-Use SOMENTE o contexto fornecido abaixo para responder à pergunta do usuário.
-Se a resposta não puder ser encontrada no contexto, diga claramente que não há
-informação suficiente nos documentos indexados.
-Responda em português do Brasil, de forma clara, objetiva e fundamentada.
-Quando possível, cite os trechos que embasam sua resposta.
+Baseie-se nos trechos fornecidos abaixo para responder à pergunta do usuário.
+Você pode sintetizar, relacionar e interpretar as informações dos trechos para
+elaborar uma resposta completa e bem estruturada — sem inventar dados que não
+estejam apoiados no contexto. Se os trechos trouxerem apenas informação parcial,
+responda com o que for possível e indique o que ficou em aberto. Só diga que não
+há informação suficiente quando os trechos realmente não tiverem nenhuma relação
+com a pergunta.
+Responda em português do Brasil, de forma clara, objetiva e fundamentada,
+citando, quando útil, os trechos/artigos que embasam a resposta.
 
 Contexto recuperado dos artigos:
 {context}
@@ -134,26 +140,69 @@ class RAGService:
             self.vectorstore.delete(ids=ids)
         return len(ids)
 
+    @staticmethod
+    def _location_label(md: dict) -> str:
+        """Rótulo legível da origem do trecho: 'p. N' (PDF) ou 'linha N' (MD/TXT)."""
+        kind = md.get("loc_kind")
+        value = md.get("loc_value")
+        if kind == "page" and value:
+            return f"p. {value}"
+        if kind == "line" and value:
+            return f"linha {value}"
+        # Compatibilidade com documentos indexados antes deste campo existir.
+        page = md.get("page")
+        if page:
+            return f"p. {page}"
+        return "trecho"
+
     def _format_context(self, docs: List[Document]) -> str:
         blocks = []
         for i, doc in enumerate(docs, start=1):
             src = doc.metadata.get("source", "?")
-            page = doc.metadata.get("page", "?")
             folder = doc.metadata.get("folder", "?")
+            loc = self._location_label(doc.metadata)
             blocks.append(
-                f"[Trecho {i} | pasta: {folder} | fonte: {src} | página: {page}]\n{doc.page_content}"
+                f"[Trecho {i} | pasta: {folder} | fonte: {src} | {loc}]\n{doc.page_content}"
             )
         return "\n\n".join(blocks) if blocks else "(nenhum trecho recuperado)"
 
-    def ask(
+    def _build_sources(self, docs: List[Document]) -> List[Dict]:
+        return [
+            {
+                "folder": d.metadata.get("folder", "?"),
+                "source": d.metadata.get("source", "?"),
+                "location": self._location_label(d.metadata),
+                "snippet": d.page_content[:240].strip().replace("\n", " ") + "…",
+            }
+            for d in docs
+        ]
+
+    @staticmethod
+    def _scope_label(folder: Optional[str], source: Optional[str]) -> str:
+        if folder and source:
+            return f"{folder} / {source}"
+        if folder:
+            return folder
+        return "todas"
+
+    def retrieve(
         self,
         question: str,
         folder: Optional[str] = None,
         source: Optional[str] = None,
-    ) -> Dict:
-        """Executa o pipeline RAG, opcionalmente restringindo a busca a uma
-        pasta e/ou a um artigo específico dentro dessa pasta."""
-        search_kwargs = {"k": RETRIEVAL_K}
+    ) -> List[Document]:
+        """Recupera os trechos mais relevantes, opcionalmente restringindo a
+        busca a uma pasta e/ou a um artigo específico dentro dessa pasta.
+
+        Usa MMR (Maximal Marginal Relevance) para combinar relevância com
+        diversidade — evita devolver vários trechos quase idênticos e cobre
+        mais partes do(s) artigo(s), o que torna as respostas mais completas.
+        """
+        search_kwargs = {
+            "k": RETRIEVAL_K,
+            "fetch_k": MMR_FETCH_K,
+            "lambda_mult": MMR_LAMBDA,
+        }
         filters = []
         if folder:
             filters.append({"folder": folder})
@@ -164,8 +213,19 @@ class RAGService:
         elif len(filters) > 1:
             search_kwargs["filter"] = {"$and": filters}
 
-        retriever = self.vectorstore.as_retriever(search_kwargs=search_kwargs)
-        retrieved_docs = retriever.invoke(question)
+        retriever = self.vectorstore.as_retriever(
+            search_type="mmr", search_kwargs=search_kwargs
+        )
+        return retriever.invoke(question)
+
+    def ask(
+        self,
+        question: str,
+        folder: Optional[str] = None,
+        source: Optional[str] = None,
+    ) -> Dict:
+        """Executa o pipeline RAG completo (resposta de uma vez)."""
+        retrieved_docs = self.retrieve(question, folder, source)
 
         chain = (
             {
@@ -176,24 +236,18 @@ class RAGService:
             | self.llm
             | StrOutputParser()
         )
-
         answer = chain.invoke(question)
 
-        sources = [
-            {
-                "folder": d.metadata.get("folder", "?"),
-                "source": d.metadata.get("source", "?"),
-                "page": d.metadata.get("page", "?"),
-                "snippet": d.page_content[:240].strip().replace("\n", " ") + "…",
-            }
-            for d in retrieved_docs
-        ]
+        return {
+            "answer": answer,
+            "sources": self._build_sources(retrieved_docs),
+            "scope": self._scope_label(folder, source),
+        }
 
-        if folder and source:
-            scope = f"{folder} / {source}"
-        elif folder:
-            scope = folder
-        else:
-            scope = "todas"
-
-        return {"answer": answer, "sources": sources, "scope": scope}
+    def stream_answer(self, question: str, docs: List[Document]):
+        """Gera a resposta token a token (para streaming ao front-end)."""
+        context = self._format_context(docs)
+        chain = self.prompt | self.llm | StrOutputParser()
+        for piece in chain.stream({"context": context, "question": question}):
+            if piece:
+                yield piece

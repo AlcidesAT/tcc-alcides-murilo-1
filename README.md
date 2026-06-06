@@ -33,7 +33,10 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
 | LLM local | Ollama (`llama3.2`) |
 | Embeddings | Ollama (`nomic-embed-text`) |
 | Base vetorial | ChromaDB (persistente) |
+| Banco de dados | PostgreSQL (arquivamento de metadados via SQLAlchemy) |
 | Frontend | HTML, CSS e JavaScript puros |
+
+> **Login/autenticação**: a tela de login e o cadastro de usuários foram removidos desta entrega e serão implementados na **segunda entrega** do TCC. Por isso a tabela `users` ainda não é criada — apenas a tabela `articles` (arquivamento dos artigos enviados).
 
 > **Sobre o "EasyRAG"**: no projeto, a recuperação simples e direta proposta no TCC é implementada com os componentes nativos do LangChain (`Chroma` como vector store + `as_retriever`), formando um pipeline RAG enxuto e fácil de manter. Caso queira substituir por uma biblioteca específica, basta trocar a implementação dentro de [backend/rag_service.py](backend/rag_service.py) — o restante do sistema permanece igual.
 
@@ -52,6 +55,41 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
      ollama pull nomic-embed-text
      ```
    - Se preferir um modelo mais leve, pode usar `llama3.2:1b` ou `qwen2.5:3b` e ajustar `LLM_MODEL` em [backend/config.py](backend/config.py).
+3. **PostgreSQL 14 ou superior** (para arquivar os metadados dos artigos).
+   - Download para Windows: <https://www.postgresql.org/download/windows/>
+
+## Banco de dados (PostgreSQL)
+
+O sistema arquiva os metadados de cada artigo enviado (nome, assunto, tamanho,
+nº de trechos indexados e data) na tabela `articles`. O conteúdo vetorizado
+continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
+
+1. Crie o banco (uma vez):
+
+   ```powershell
+   psql -U postgres -c "CREATE DATABASE artigos_db;"
+   ```
+
+2. Configure a conexão. Copie `.env.example` para `.env` e ajuste o usuário/senha:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   ```env
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/artigos_db
+   ```
+
+3. As tabelas são criadas **automaticamente** quando o servidor inicia
+   (SQLAlchemy). Se preferir criá-las manualmente, rode o script de esquema:
+
+   ```powershell
+   psql -U postgres -d artigos_db -f database/schema.sql
+   ```
+
+> Se o PostgreSQL não estiver acessível, a aplicação continua funcionando para
+> upload e consulta — apenas o arquivamento dos metadados é desabilitado (com um
+> aviso no console), sem bloquear o RAG.
 
 ## Como executar
 
@@ -92,6 +130,7 @@ Abra o navegador em **<http://127.0.0.1:8000>**.
 | --- | --- | --- |
 | `GET` | `/api/health` | Verifica se a API está no ar. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |
+| `GET` | `/api/articles` | Lista os artigos arquivados no PostgreSQL (metadados). |
 | `POST` | `/api/upload` | Recebe um arquivo (`multipart/form-data`) e o indexa. |
 | `DELETE` | `/api/documents/{nome}` | Remove um artigo do índice. |
 | `POST` | `/api/ask` | Recebe `{"question": "..."}` e devolve `{answer, sources}`. |
@@ -103,18 +142,23 @@ A documentação interativa fica em <http://127.0.0.1:8000/docs>.
 ```
 tcc-alcides-murilo-1/
 ├── backend/
-│   ├── config.py
+│   ├── config.py            # parâmetros, caminhos e DATABASE_URL
+│   ├── database.py          # engine/sessão SQLAlchemy + init_db()
+│   ├── models.py            # modelo Article (arquivamento)
 │   ├── document_processor.py
 │   ├── rag_service.py
-│   ├── main.py
+│   ├── main.py              # API FastAPI + serve o front-end
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── script.js
+│   └── js/                  # módulos ES (api, app, chat, folders, upload…)
+├── database/
+│   └── schema.sql           # esquema SQL (opcional; tabelas criadas pelo app)
 ├── data/
-│   ├── documents/      # PDFs/MDs/TXTs enviados
-│   └── vectorstore/    # Índice Chroma persistente
+│   ├── documents/           # PDFs/MDs/TXTs enviados
+│   └── vectorstore/         # Índice Chroma persistente
+├── .env.example             # modelo de configuração (DATABASE_URL)
 ├── start.ps1
 ├── .gitignore
 └── README.md

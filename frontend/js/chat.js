@@ -10,7 +10,7 @@
  */
 
 import * as api from "./api.js";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, renderMarkdown } from "./utils.js";
 
 const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
@@ -119,15 +119,17 @@ async function handleSubmit(e) {
     questionEl.value = "";
     autoResize();
     askBtn.disabled = true;
-    const typing = appendTyping();
+
+    const bot = createBotMessage();
 
     try {
-        const data = await api.ask(q, folder, source);
-        typing.remove();
-        appendBot(data.answer, data.sources, data.scope);
+        await api.askStream(q, folder, source, {
+            onToken: (text) => bot.appendText(text),
+            onDone: (sources, scope) => bot.finalize(sources, scope),
+            onError: (err) => bot.fail(err.message),
+        });
     } catch (err) {
-        typing.remove();
-        appendBot(`Erro: ${err.message}`);
+        bot.fail(err.message);
     } finally {
         askBtn.disabled = false;
         questionEl.focus();
@@ -145,7 +147,20 @@ function appendUser(text) {
     scrollToBottom();
 }
 
-function appendBot(text, sources, scope) {
+function scopeText(scope) {
+    if (scope === "todas") return "Todos os assuntos";
+    if (scope.includes(" / ")) {
+        const [f, a] = scope.split(" / ");
+        return `Assunto: ${f} · Artigo: ${a}`;
+    }
+    return `Assunto: ${scope}`;
+}
+
+/**
+ * Cria a mensagem do assistente já visível (com indicador de digitação) e
+ * devolve helpers para preenchê-la enquanto a resposta chega em streaming.
+ */
+function createBotMessage() {
     const row = document.createElement("div");
     row.className = "msg-row assistant";
 
@@ -156,55 +171,65 @@ function appendBot(text, sources, scope) {
     const content = document.createElement("div");
     content.className = "msg-content";
 
-    if (scope) {
-        const tag = document.createElement("div");
-        tag.className = "scope-tag";
-        if (scope === "todas") {
-            tag.textContent = "Todos os assuntos";
-        } else if (scope.includes(" / ")) {
-            const [f, a] = scope.split(" / ");
-            tag.textContent = `Assunto: ${f} · Artigo: ${a}`;
-        } else {
-            tag.textContent = `Assunto: ${scope}`;
-        }
-        content.appendChild(tag);
-    }
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    content.appendChild(typing);
 
     const body = document.createElement("div");
     body.className = "msg-text";
-    body.textContent = text;
-    content.appendChild(body);
-
-    if (sources && sources.length) {
-        const sBox = document.createElement("div");
-        sBox.className = "sources";
-        sBox.innerHTML =
-            "<strong>Fontes utilizadas:</strong><ul>" +
-            sources
-                .map(
-                    (s) =>
-                        `<li><b>${escapeHtml(s.folder)} / ${escapeHtml(s.source)}</b> ` +
-                        `(p. ${escapeHtml(String(s.page))}): ${escapeHtml(s.snippet)}</li>`
-                )
-                .join("") +
-            "</ul>";
-        content.appendChild(sBox);
-    }
 
     row.append(avatar, content);
     messagesEl.appendChild(row);
     scrollToBottom();
-}
 
-function appendTyping() {
-    const row = document.createElement("div");
-    row.className = "msg-row assistant";
-    row.innerHTML =
-        '<div class="msg-avatar">◆</div>' +
-        '<div class="msg-content"><div class="typing"><span></span><span></span><span></span></div></div>';
-    messagesEl.appendChild(row);
-    scrollToBottom();
-    return row;
+    let started = false;
+    let rawText = "";
+
+    function ensureStarted() {
+        if (started) return;
+        typing.remove();
+        content.appendChild(body);
+        started = true;
+    }
+
+    return {
+        appendText(text) {
+            ensureStarted();
+            rawText += text;
+            body.innerHTML = renderMarkdown(rawText);
+            scrollToBottom();
+        },
+        finalize(sources, scope) {
+            ensureStarted();
+            if (scope) {
+                const tag = document.createElement("div");
+                tag.className = "scope-tag";
+                tag.textContent = scopeText(scope);
+                content.insertBefore(tag, body);
+            }
+            if (sources && sources.length) {
+                const sBox = document.createElement("div");
+                sBox.className = "sources";
+                sBox.innerHTML =
+                    "<strong>Fontes utilizadas:</strong><ul>" +
+                    sources
+                        .map(
+                            (s) =>
+                                `<li><b>${escapeHtml(s.folder)} / ${escapeHtml(s.source)}</b> ` +
+                                `(${escapeHtml(s.location || "trecho")}): ${escapeHtml(s.snippet)}</li>`
+                        )
+                        .join("") +
+                    "</ul>";
+                content.appendChild(sBox);
+            }
+            scrollToBottom();
+        },
+        fail(message) {
+            ensureStarted();
+            body.textContent = `Erro: ${message}`;
+        },
+    };
 }
 
 function scrollToBottom() {
