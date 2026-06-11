@@ -17,7 +17,27 @@ const refreshBtn = document.getElementById("refresh-btn");
 const newFolderName = document.getElementById("new-folder-name");
 const newFolderSave = document.getElementById("new-folder-save");
 
-const collapsed = new Set();
+const expanded = new Set();
+
+const FOLDER_DISPLAY_NAMES = {
+    "ciencia-juridica": "Ciência Jurídica",
+    "ciencias-agrarias": "Ciências Agrárias",
+    "ciencias-da-educacao": "Ciências da Educação",
+    "ciencias-da-vida-e-saude": "Ciências da Vida e Saúde",
+    "ciencias-exatas-e-tecnologicas": "Ciências Exatas e Tecnológicas",
+    "ciencias-sociais": "Ciências Sociais",
+    geral: "Geral",
+};
+
+function displayFolderName(slug) {
+    return (
+        FOLDER_DISPLAY_NAMES[slug] ||
+        slug
+            .split("-")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")
+    );
+}
 
 export async function loadFolders() {
     const [folders, documents] = await Promise.all([
@@ -56,7 +76,7 @@ export function renderFolders({ folders, documentsByFolder }) {
 function buildFolderGroup(folder, docs) {
     const group = document.createElement("div");
     group.className = "folder-group";
-    if (collapsed.has(folder.folder)) group.classList.add("collapsed");
+    if (!expanded.has(folder.folder)) group.classList.add("collapsed");
 
     const header = document.createElement("div");
     header.className = "folder-header";
@@ -67,8 +87,9 @@ function buildFolderGroup(folder, docs) {
 
     const name = document.createElement("span");
     name.className = "folder-name";
-    name.title = folder.folder;
-    name.textContent = folder.folder;
+    const display = displayFolderName(folder.folder);
+    name.title = display;
+    name.textContent = display;
 
     const meta = document.createElement("span");
     meta.className = "folder-meta";
@@ -119,12 +140,12 @@ function buildDocItem(doc) {
 }
 
 function toggleCollapsed(group, name) {
-    if (collapsed.has(name)) {
-        collapsed.delete(name);
-        group.classList.remove("collapsed");
-    } else {
-        collapsed.add(name);
+    if (expanded.has(name)) {
+        expanded.delete(name);
         group.classList.add("collapsed");
+    } else {
+        expanded.add(name);
+        group.classList.remove("collapsed");
     }
 }
 
