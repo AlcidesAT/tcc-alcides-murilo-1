@@ -27,7 +27,7 @@ DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-LLM_MODEL = "llama3.2:1b"
+LLM_MODEL = "llama3.2"
 EMBEDDING_MODEL = "nomic-embed-text"
 
 CHUNK_SIZE = 1000
