@@ -67,7 +67,7 @@ continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
 1. Crie o banco (uma vez):
 
    ```powershell
-   psql -U postgres -c "CREATE DATABASE artigos_db;"
+   psql -U postgres -c "CREATE DATABASE tcc_rag;"
    ```
 
 2. Configure a conexão. Copie `.env.example` para `.env` e ajuste o usuário/senha:
@@ -77,14 +77,14 @@ continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
    ```
 
    ```env
-   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/artigos_db
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tcc_rag
    ```
 
 3. As tabelas são criadas **automaticamente** quando o servidor inicia
    (SQLAlchemy). Se preferir criá-las manualmente, rode o script de esquema:
 
    ```powershell
-   psql -U postgres -d artigos_db -f database/schema.sql
+   psql -U postgres -d tcc_rag -f database/schema.sql
    ```
 
 > Se o PostgreSQL não estiver acessível, a aplicação continua funcionando para

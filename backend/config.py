@@ -51,7 +51,7 @@ MAX_FOLDER_NAME_LEN = 50
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/artigos_db",
+    "postgresql://postgres:postgres@localhost:5432/tcc_rag",
 )
 
 

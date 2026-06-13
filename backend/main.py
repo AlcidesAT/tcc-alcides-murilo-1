@@ -34,7 +34,7 @@ from config import (
 )
 from rag_service import RAGService
 from database import SessionLocal, get_db, init_db
-from models import Article, Question, QuestionSource
+from models import Article, QuestionSource
 
 
 @asynccontextmanager
@@ -273,12 +273,11 @@ def _validate_ask(payload: AskRequest):
     return question, folder_slug, source
 
 
-def _save_interaction(question: str, folder, answer: str, scope: str, sources: list) -> None:
-    """Persiste a pergunta e os artigos usados para respondê-la.
+def _save_sources(sources: list) -> None:
+    """Persiste, um registro por artigo distinto, as fontes usadas numa resposta.
 
     Best-effort: qualquer falha (banco indisponível, etc.) é apenas registrada
-    no console e nunca interrompe a resposta ao usuário. Os trechos são
-    agrupados por artigo distinto, juntando os locais citados (ex.: linhas).
+    no console e nunca interrompe a resposta ao usuário.
     """
     try:
         db = SessionLocal()
@@ -287,8 +286,6 @@ def _save_interaction(question: str, folder, answer: str, scope: str, sources: l
         return
 
     try:
-        record = Question(question=question, answer=answer, scope=scope, folder=folder)
-
         grouped: dict = {}
         for s in sources:
             key = (s.get("folder"), s.get("source"))
@@ -298,7 +295,7 @@ def _save_interaction(question: str, folder, answer: str, scope: str, sources: l
                 entry["locations"].append(loc)
 
         for (fld, art), info in grouped.items():
-            record.sources.append(
+            db.add(
                 QuestionSource(
                     folder=fld,
                     article=art,
@@ -306,11 +303,9 @@ def _save_interaction(question: str, folder, answer: str, scope: str, sources: l
                     snippet=info["snippet"],
                 )
             )
-
-        db.add(record)
         db.commit()
     except Exception as exc:
-        print(f"[WARNING] Falha ao salvar pergunta no banco: {exc}")
+        print(f"[WARNING] Falha ao salvar fontes no banco: {exc}")
         try:
             db.rollback()
         except Exception:
@@ -333,9 +328,7 @@ def ask(payload: AskRequest):
             ),
         ) from exc
 
-    _save_interaction(
-        question, folder_slug, result["answer"], result["scope"], result["sources"]
-    )
+    _save_sources(result["sources"])
     return result
 
 
@@ -366,10 +359,8 @@ def ask_stream(payload: AskRequest):
     scope = rag._scope_label(folder_slug, source)
 
     def generate():
-        answer_parts = []
         try:
             for token in rag.stream_answer(question, docs):
-                answer_parts.append(token)
                 yield json.dumps({"type": "token", "text": token}, ensure_ascii=False) + "\n"
         except Exception as exc:
             yield json.dumps({"type": "error", "detail": str(exc)}, ensure_ascii=False) + "\n"
@@ -379,7 +370,7 @@ def ask_stream(payload: AskRequest):
             {"type": "done", "sources": sources, "scope": scope}, ensure_ascii=False
         ) + "\n"
 
-        _save_interaction(question, folder_slug, "".join(answer_parts), scope, sources)
+        _save_sources(sources)
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
