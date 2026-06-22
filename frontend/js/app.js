@@ -10,10 +10,14 @@
  */
 
 import { subscribe } from "./state.js";
+import { initAuth } from "./auth.js";
+import { initTooltips } from "./tooltip.js";
 import { initFolders, loadFolders, renderFolders } from "./folders.js";
 import { initUpload, updateFolderSelector } from "./upload.js";
 import { initChat, updateScopeSelectors } from "./chat.js";
 
+initAuth();
+initTooltips();
 initFolders();
 initUpload();
 initChat();

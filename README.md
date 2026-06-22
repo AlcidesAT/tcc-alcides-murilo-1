@@ -36,7 +36,7 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
 | Banco de dados | PostgreSQL (arquivamento de metadados via SQLAlchemy) |
 | Frontend | HTML, CSS e JavaScript puros |
 
-> **Login/autenticação**: a tela de login e o cadastro de usuários foram removidos desta entrega e serão implementados na **segunda entrega** do TCC. Por isso a tabela `users` ainda não é criada — apenas a tabela `articles` (arquivamento dos artigos enviados).
+> **Perfis de acesso**: nesta versão o sistema prevê a seleção de dois perfis de usuário — **Leitor** e **Administrador**. O perfil Leitor (padrão) acessa apenas a consulta dos artigos indexados, podendo fazer perguntas em linguagem natural e obter respostas fundamentadas na base de conhecimento. O perfil Administrador possui permissões adicionais: envio, organização e indexação de novos artigos (além da remoção de pastas/artigos). Para entrar como Administrador, clique em **"Entrar como admin"** no rodapé do menu lateral e informe a senha definida em `ADMIN_PASSWORD` (veja `.env.example`). O cadastro de múltiplos usuários no banco (tabela `users`) fica para a **segunda entrega** — por enquanto o acesso de Administrador é protegido por uma única senha.
 
 > **Sobre o "EasyRAG"**: no projeto, a recuperação simples e direta proposta no TCC é implementada com os componentes nativos do LangChain (`Chroma` como vector store + `as_retriever`), formando um pipeline RAG enxuto e fácil de manter. Caso queira substituir por uma biblioteca específica, basta trocar a implementação dentro de [backend/rag_service.py](backend/rag_service.py) — o restante do sistema permanece igual.
 
@@ -117,22 +117,27 @@ Abra o navegador em **<http://127.0.0.1:8000>**.
 ## Como usar
 
 1. Garanta que o `ollama serve` esteja rodando em outro terminal.
-2. Acesse `http://127.0.0.1:8000` no navegador.
-3. No painel lateral, clique em **"Clique ou arraste um arquivo aqui"** e escolha um artigo (PDF/MD/TXT).
-4. Clique em **"Indexar artigo"** e aguarde a confirmação (a primeira indexação pode demorar enquanto os embeddings são calculados).
-5. Repita para quantos artigos quiser. Eles aparecerão na lista "Artigos indexados".
-6. Digite uma pergunta no campo inferior e pressione **Enter** ou clique em **Perguntar**.
-7. A resposta aparecerá com os **trechos-fonte** que embasaram a geração — exatamente o comportamento de rastreabilidade citado na proposta do TCC.
+2. Acesse `http://127.0.0.1:8000` no navegador. Você entra como **Leitor**.
+3. **Como Leitor**: digite uma pergunta no campo inferior e pressione **Enter** ou clique em enviar. Opcionalmente, restrinja a busca a um assunto/artigo no seletor do topo. A resposta aparece com os **trechos-fonte** que embasaram a geração — o comportamento de rastreabilidade citado na proposta do TCC.
+4. **Para enviar/gerenciar artigos** (perfil Administrador): clique em **"Entrar como admin"** no rodapé do menu lateral e informe a senha (`ADMIN_PASSWORD`). As seções de criação de assuntos e envio de artigos passam a aparecer.
+5. Como Administrador, crie um assunto, selecione-o, arraste ou clique para escolher os arquivos (PDF/MD/TXT) e clique em **"Indexar artigos"**. A primeira indexação pode demorar enquanto os embeddings são calculados.
+6. Para voltar ao perfil Leitor, clique em **"Sair"** no mesmo local.
 
 ## Endpoints da API
+
+As rotas marcadas com 🔒 exigem o cabeçalho `X-Admin-Token` (obtido em `/api/admin/login`).
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | `GET` | `/api/health` | Verifica se a API está no ar. |
+| `POST` | `/api/admin/login` | Recebe `{"password": "..."}` e devolve o token de Administrador. |
+| `GET` | `/api/folders` | Lista os assuntos (pastas) e contagem de artigos. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |
 | `GET` | `/api/articles` | Lista os artigos arquivados no PostgreSQL (metadados). |
-| `POST` | `/api/upload` | Recebe um arquivo (`multipart/form-data`) e o indexa. |
-| `DELETE` | `/api/documents/{nome}` | Remove um artigo do índice. |
+| `POST` | `/api/folders` | 🔒 Cria um novo assunto (pasta). |
+| `POST` | `/api/upload` | 🔒 Recebe um arquivo (`multipart/form-data`) e o indexa. |
+| `DELETE` | `/api/folders/{folder}/documents/{nome}` | 🔒 Remove um artigo do índice. |
+| `DELETE` | `/api/folders/{folder}` | 🔒 Remove um assunto e seus artigos. |
 | `POST` | `/api/ask` | Recebe `{"question": "..."}` e devolve `{answer, sources}`. |
 
 A documentação interativa fica em <http://127.0.0.1:8000/docs>.
@@ -152,7 +157,7 @@ tcc-alcides-murilo-1/
 ├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── js/                  # módulos ES (api, app, chat, folders, upload…)
+│   └── js/                  # módulos ES (api, app, auth, chat, folders, upload…)
 ├── database/
 │   └── schema.sql           # esquema SQL (opcional; tabelas criadas pelo app)
 ├── data/

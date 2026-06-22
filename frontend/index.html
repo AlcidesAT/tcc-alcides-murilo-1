@@ -6,7 +6,7 @@
     <title>Consulta Inteligente a Artigos Científicos</title>
     <link rel="stylesheet" href="/static/style.css" />
 </head>
-<body>
+<body class="role-leitor">
     <div class="app" id="app">
         <!-- ============================ SIDEBAR ============================ -->
         <aside class="sidebar" id="sidebar">
@@ -25,7 +25,7 @@
                         <button id="refresh-btn" class="icon-btn" title="Atualizar">↻</button>
                     </div>
 
-                    <div class="new-folder-form">
+                    <div class="new-folder-form admin-only">
                         <input id="new-folder-name" type="text" placeholder="Novo assunto…" maxlength="50" />
                         <button id="new-folder-save" class="mini-btn" title="Criar assunto">+</button>
                     </div>
@@ -35,8 +35,8 @@
                     </div>
                 </section>
 
-                <!-- Enviar artigos -->
-                <section class="side-section">
+                <!-- Enviar artigos (exclusivo do Administrador) -->
+                <section class="side-section admin-only">
                     <div class="side-section-head">
                         <span>Enviar artigos</span>
                     </div>
@@ -61,6 +61,13 @@
             </div>
 
             <div class="sidebar-foot">
+                <div class="profile" id="profile">
+                    <span class="profile-badge">
+                        <span class="profile-dot"></span>
+                        <span id="profile-role">Leitor</span>
+                    </span>
+                    <button class="profile-btn" id="profile-btn">Entrar como admin</button>
+                </div>
                 <div class="brand-foot">
                     <span class="brand-mark">◆</span>
                     <div class="brand-info">
@@ -90,40 +97,76 @@
                 </div>
             </header>
 
-            <div class="chat-scroll" id="chat-scroll">
-                <!-- Estado inicial (estilo ChatGPT) -->
-                <div class="hero" id="empty-state">
-                    <div class="hero-logo">◆</div>
-                    <h2>Em que posso ajudar?</h2>
-                    <p>Pergunte em linguagem natural sobre seus artigos científicos indexados.</p>
-                    <div class="suggestions">
-                        <button class="suggestion">Resuma os principais achados</button>
-                        <button class="suggestion">Qual é a metodologia utilizada?</button>
-                        <button class="suggestion">Quais são as conclusões do artigo?</button>
-                        <button class="suggestion">Liste as referências mais citadas</button>
+            <div class="workspace">
+                <div class="chat-area">
+                    <div class="chat-scroll" id="chat-scroll">
+                        <!-- Estado inicial (estilo ChatGPT) -->
+                        <div class="hero" id="empty-state">
+                            <div class="hero-logo">◆</div>
+                            <h2>Em que posso ajudar?</h2>
+                            <p>Pergunte em linguagem natural sobre seus artigos científicos indexados.</p>
+                            <div class="suggestions">
+                                <button class="suggestion">Resuma os principais achados</button>
+                                <button class="suggestion">Qual é a metodologia utilizada?</button>
+                                <button class="suggestion">Quais são as conclusões do artigo?</button>
+                                <button class="suggestion">Liste as referências mais citadas</button>
+                            </div>
+                        </div>
+
+                        <div id="messages" class="messages"></div>
+                    </div>
+
+                    <div class="composer-wrap">
+                        <form id="ask-form" class="composer">
+                            <textarea
+                                id="question"
+                                placeholder="Pergunte sobre seus artigos…"
+                                rows="1"
+                                required
+                            ></textarea>
+                            <button type="submit" class="send-btn" id="ask-btn" title="Enviar" aria-label="Enviar">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                                </svg>
+                            </button>
+                        </form>
+                        <p class="disclaimer">As respostas são geradas a partir dos artigos indexados. Verifique informações importantes.</p>
                     </div>
                 </div>
 
-                <div id="messages" class="messages"></div>
-            </div>
-
-            <div class="composer-wrap">
-                <form id="ask-form" class="composer">
-                    <textarea
-                        id="question"
-                        placeholder="Pergunte sobre seus artigos…"
-                        rows="1"
-                        required
-                    ></textarea>
-                    <button type="submit" class="send-btn" id="ask-btn" title="Enviar" aria-label="Enviar">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 19V5M5 12l7-7 7 7"/>
-                        </svg>
-                    </button>
-                </form>
-                <p class="disclaimer">As respostas são geradas a partir dos artigos indexados. Verifique informações importantes.</p>
+                <!-- Trilha de referências: um widget por fonte da última resposta -->
+                <aside class="references-rail" id="references-rail" aria-label="Referências da resposta">
+                    <div class="rail-head">
+                        <span>Referências</span>
+                        <span class="rail-count" id="rail-count" hidden></span>
+                    </div>
+                    <div class="rail-body" id="rail-body">
+                        <p class="rail-empty">As fontes que embasarem a resposta aparecerão aqui.</p>
+                    </div>
+                </aside>
             </div>
         </main>
+    </div>
+
+    <!-- ===================== Modal de login (Administrador) ===================== -->
+    <div class="modal-overlay" id="login-modal" hidden>
+        <div class="modal">
+            <h3>Entrar como Administrador</h3>
+            <p class="modal-desc">
+                Informe a senha de administrador para enviar, organizar e indexar artigos.
+            </p>
+            <input
+                type="password"
+                id="admin-password"
+                placeholder="Senha de administrador"
+                autocomplete="current-password"
+            />
+            <div class="modal-error" id="login-error"></div>
+            <div class="modal-actions">
+                <button class="btn-ghost" id="login-cancel">Cancelar</button>
+                <button class="btn-solid" id="login-submit">Entrar</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="/static/js/app.js"></script>

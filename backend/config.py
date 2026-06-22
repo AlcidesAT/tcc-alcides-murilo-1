@@ -54,6 +54,12 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/tcc_rag",
 )
 
+# Perfis de acesso. O sistema prevê dois perfis: Leitor (apenas consulta) e
+# Administrador (envio, organização e indexação de artigos). O perfil Leitor é
+# o padrão; para virar Administrador, o usuário informa esta senha, validada
+# no backend. Defina ADMIN_PASSWORD no .env em produção.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
 
 def slugify_folder(name: str | None) -> str:
     """Converte um nome livre em um slug seguro para sistema de arquivos.

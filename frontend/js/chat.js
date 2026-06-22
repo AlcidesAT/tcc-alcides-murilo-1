@@ -16,6 +16,8 @@ const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
 const scopeArticleWrap = document.getElementById("scope-article-wrap");
 const messagesEl = document.getElementById("messages");
+const railBody = document.getElementById("rail-body");
+const railCount = document.getElementById("rail-count");
 const askForm = document.getElementById("ask-form");
 const questionEl = document.getElementById("question");
 const askBtn = document.getElementById("ask-btn");
@@ -62,8 +64,43 @@ function newConversation() {
     messagesEl.innerHTML = "";
     emptyState.hidden = false;
     questionEl.value = "";
+    setReferences(null, "As fontes que embasarem a resposta aparecerão aqui.");
     autoResize();
     questionEl.focus();
+}
+
+/**
+ * Atualiza a trilha de referências (coluna da direita) com um widget por fonte
+ * da resposta mais recente. Com `sources` nulo/vazio, mostra a mensagem de
+ * espaço reservado passada em `placeholder`.
+ */
+function setReferences(sources, placeholder = "Esta resposta não citou fontes específicas.") {
+    if (!sources || !sources.length) {
+        railCount.hidden = true;
+        railCount.textContent = "";
+        railBody.innerHTML = `<p class="rail-empty">${escapeHtml(placeholder)}</p>`;
+        return;
+    }
+
+    railCount.hidden = false;
+    railCount.textContent = String(sources.length);
+    railBody.innerHTML = "";
+
+    sources.forEach((s, i) => {
+        const card = document.createElement("article");
+        card.className = "ref-card";
+        card.setAttribute("data-tip", s.source);
+        card.innerHTML =
+            `<div class="ref-head">` +
+            `<span class="ref-index">${i + 1}</span>` +
+            `<span class="ref-title">${escapeHtml(s.source)}</span>` +
+            `</div>` +
+            `<div class="ref-meta">${escapeHtml(s.folder)} · ${escapeHtml(s.location || "trecho")}</div>` +
+            (s.snippet
+                ? `<div class="ref-snippet">${escapeHtml(s.snippet)}</div>`
+                : "");
+        railBody.appendChild(card);
+    });
 }
 
 export function updateScopeSelectors({ folders, documentsByFolder: dbf }) {
@@ -119,6 +156,7 @@ async function handleSubmit(e) {
     questionEl.value = "";
     autoResize();
     askBtn.disabled = true;
+    setReferences(null, "Buscando referências…");
 
     const bot = createBotMessage();
 
@@ -209,25 +247,31 @@ function createBotMessage() {
                 content.insertBefore(tag, body);
             }
             if (sources && sources.length) {
-                const sBox = document.createElement("div");
-                sBox.className = "sources";
-                sBox.innerHTML =
-                    "<strong>Fontes utilizadas:</strong><ul>" +
-                    sources
-                        .map(
-                            (s) =>
-                                `<li><b>${escapeHtml(s.folder)} / ${escapeHtml(s.source)}</b> ` +
-                                `(${escapeHtml(s.location || "trecho")}): ${escapeHtml(s.snippet)}</li>`
-                        )
-                        .join("") +
-                    "</ul>";
-                content.appendChild(sBox);
+                const box = document.createElement("div");
+                box.className = "msg-sources";
+
+                const lbl = document.createElement("span");
+                lbl.className = "lbl";
+                lbl.textContent =
+                    sources.length === 1 ? "1 fonte:" : `${sources.length} fontes:`;
+                box.appendChild(lbl);
+
+                sources.forEach((s) => {
+                    const chip = document.createElement("span");
+                    chip.className = "src-chip";
+                    chip.setAttribute("data-tip", s.source);
+                    chip.textContent = s.source;
+                    box.appendChild(chip);
+                });
+                content.appendChild(box);
             }
+            setReferences(sources);
             scrollToBottom();
         },
         fail(message) {
             ensureStarted();
             body.textContent = `Erro: ${message}`;
+            setReferences(null, "Não foi possível obter referências para esta resposta.");
         },
     };
 }

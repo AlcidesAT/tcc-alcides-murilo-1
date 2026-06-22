@@ -6,18 +6,20 @@ consulta em linguagem natural (opcionalmente restrita a uma pasta),
 listagem e remoção de documentos e pastas, e arquivamento de artigos
 no PostgreSQL, além de servir o front-end.
 
-Observação: a camada de login/cadastro de usuários será adicionada na
-segunda entrega do TCC.
+Perfis de acesso: Leitor (consulta, padrão) e Administrador (envio e gestão de
+artigos, protegido por senha). O cadastro de múltiplos usuários no banco fica
+para a segunda entrega do TCC.
 """
 
 import json
+import secrets
 import shutil
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from config import (
+    ADMIN_PASSWORD,
     BASE_DIR,
     DEFAULT_FOLDER,
     DOCUMENTS_DIR,
@@ -44,7 +47,7 @@ async def lifespan(app: FastAPI):
         print("[INFO] Banco de dados PostgreSQL inicializado.")
     except Exception as exc:
         print(f"[WARNING] Banco de dados PostgreSQL não disponível: {exc}")
-        print("[WARNING] Autenticação e arquivamento desabilitados até que o BD esteja acessível.")
+        print("[WARNING] Arquivamento de metadados desabilitado até que o BD esteja acessível.")
     yield
 
 
@@ -63,6 +66,11 @@ app.add_middleware(
 )
 
 rag = RAGService()
+
+# Token de sessão do administrador, gerado a cada inicialização do servidor.
+# Quem informar a senha correta recebe este token e o reenvia no cabeçalho
+# `X-Admin-Token` para acessar as rotas de gestão (upload, criação/remoção).
+ADMIN_TOKEN = secrets.token_urlsafe(32)
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +91,35 @@ class AskResponse(BaseModel):
 
 class CreateFolderRequest(BaseModel):
     name: str
+
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
+# ---------------------------------------------------------------------------
+# Autenticação do perfil Administrador
+# ---------------------------------------------------------------------------
+
+def require_admin(x_admin_token: Optional[str] = Header(default=None)):
+    """Dependência que protege as rotas exclusivas do Administrador.
+
+    O perfil Leitor (sem token) recebe 403 ao tentar enviar ou gerenciar
+    artigos. A comparação usa `secrets.compare_digest` para evitar timing.
+    """
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, ADMIN_TOKEN):
+        raise HTTPException(
+            status_code=403,
+            detail="Ação restrita ao Administrador. Faça login para continuar.",
+        )
+
+
+@app.post("/api/admin/login")
+def admin_login(payload: AdminLoginRequest):
+    """Valida a senha do Administrador e devolve o token de sessão."""
+    if not secrets.compare_digest(payload.password or "", ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="Senha de administrador incorreta.")
+    return {"token": ADMIN_TOKEN, "role": "admin"}
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +174,7 @@ def list_folders():
     return {"folders": indexed}
 
 
-@app.post("/api/folders", status_code=201)
+@app.post("/api/folders", status_code=201, dependencies=[Depends(require_admin)])
 def create_folder(payload: CreateFolderRequest):
     raw = (payload.name or "").strip()
     if not raw:
@@ -157,7 +194,7 @@ def list_documents(folder: Optional[str] = None):
     return {"documents": rag.list_documents(folder_slug)}
 
 
-@app.post("/api/upload")
+@app.post("/api/upload", dependencies=[Depends(require_admin)])
 async def upload_document(
     file: UploadFile = File(...),
     folder: str = Form(DEFAULT_FOLDER),
@@ -223,7 +260,10 @@ async def upload_document(
     }
 
 
-@app.delete("/api/folders/{folder}/documents/{source_name}")
+@app.delete(
+    "/api/folders/{folder}/documents/{source_name}",
+    dependencies=[Depends(require_admin)],
+)
 def delete_document(folder: str, source_name: str):
     folder_slug = slugify_folder(folder)
     removed = rag.delete_document(folder_slug, source_name)
@@ -236,7 +276,7 @@ def delete_document(folder: str, source_name: str):
     return {"folder": folder_slug, "source": source_name, "chunks_removed": removed}
 
 
-@app.delete("/api/folders/{folder}")
+@app.delete("/api/folders/{folder}", dependencies=[Depends(require_admin)])
 def delete_folder(folder: str):
     folder_slug = slugify_folder(folder)
     folder_dir = DOCUMENTS_DIR / folder_slug

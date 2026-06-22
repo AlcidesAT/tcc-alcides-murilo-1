@@ -21,6 +21,46 @@ async function request(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Perfil Administrador
+//
+// O token de sessão fica no sessionStorage (vale enquanto a aba estiver
+// aberta). As rotas de gestão recebem o cabeçalho `X-Admin-Token`.
+// ---------------------------------------------------------------------------
+
+const ADMIN_TOKEN_KEY = "tcc_admin_token";
+
+export function getAdminToken() {
+    return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+}
+
+export function setAdminToken(token) {
+    if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+    else sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+export function isAdmin() {
+    return Boolean(getAdminToken());
+}
+
+function adminHeaders(extra = {}) {
+    return { ...extra, "X-Admin-Token": getAdminToken() };
+}
+
+export async function adminLogin(password) {
+    const data = await request("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+    });
+    setAdminToken(data.token);
+    return data;
+}
+
+export function adminLogout() {
+    setAdminToken("");
+}
+
+// ---------------------------------------------------------------------------
 // Folders & documents
 // ---------------------------------------------------------------------------
 
@@ -37,27 +77,34 @@ export async function listDocuments() {
 export async function createFolder(name) {
     return request("/api/folders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name }),
     });
 }
 
 export async function deleteFolder(folder) {
-    return request(`/api/folders/${encodeURIComponent(folder)}`, { method: "DELETE" });
+    return request(`/api/folders/${encodeURIComponent(folder)}`, {
+        method: "DELETE",
+        headers: adminHeaders(),
+    });
 }
 
 export async function deleteDocument(folder, source) {
     const path =
         `/api/folders/${encodeURIComponent(folder)}` +
         `/documents/${encodeURIComponent(source)}`;
-    return request(path, { method: "DELETE" });
+    return request(path, { method: "DELETE", headers: adminHeaders() });
 }
 
 export async function uploadFile(folder, file) {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("folder", folder);
-    return request("/api/upload", { method: "POST", body: fd });
+    return request("/api/upload", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: fd,
+    });
 }
 
 export async function ask(question, folder, source) {
