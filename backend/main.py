@@ -65,6 +65,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def no_cache_frontend(request, call_next):
+    """Evita que o navegador sirva versões antigas do front-end (HTML/CSS/JS).
+
+    Em desenvolvimento, módulos ES são cacheados de forma agressiva; forçar a
+    revalidação dispensa o 'hard refresh' a cada alteração."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 rag = RAGService()
 
 # Token de sessão do administrador, gerado a cada inicialização do servidor.
@@ -192,6 +206,34 @@ def create_folder(payload: CreateFolderRequest):
 def list_documents(folder: Optional[str] = None):
     folder_slug = slugify_folder(folder) if folder else None
     return {"documents": rag.list_documents(folder_slug)}
+
+
+@app.get("/api/articles/{folder}/{source}/content")
+def article_content(folder: str, source: str):
+    """Devolve o texto de um artigo .md/.txt para leitura na interface.
+
+    Aberto a qualquer perfil (Leitor pode ler). PDFs não são pré-visualizados
+    como texto. O arquivo em disco pode ter sido salvo com o nome original
+    (lote) ou com prefixo único (upload), então tentamos os dois.
+    """
+    suffix = Path(source).suffix.lower()
+    if suffix not in {".md", ".txt"}:
+        raise HTTPException(
+            status_code=415,
+            detail="Pré-visualização disponível apenas para arquivos .md e .txt.",
+        )
+
+    folder_dir = DOCUMENTS_DIR / slugify_folder(folder)
+    path = folder_dir / source
+    if not path.exists():
+        matches = list(folder_dir.glob(f"*_{source}"))
+        path = matches[0] if matches else None
+
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+
+    content = path.read_text(encoding="utf-8", errors="replace")
+    return {"folder": slugify_folder(folder), "source": source, "content": content}
 
 
 @app.post("/api/upload", dependencies=[Depends(require_admin)])
@@ -395,7 +437,7 @@ def ask_stream(payload: AskRequest):
             ),
         ) from exc
 
-    sources = rag._build_sources(docs)
+    sources = rag.build_references(question, docs, folder_slug, source)
     scope = rag._scope_label(folder_slug, source)
 
     def generate():

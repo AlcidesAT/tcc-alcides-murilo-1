@@ -11,6 +11,7 @@
 
 import * as api from "./api.js";
 import { escapeHtml, renderMarkdown } from "./utils.js";
+import { openArticle } from "./reader.js";
 
 const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
@@ -90,10 +91,19 @@ function setReferences(sources, placeholder = "Esta resposta não citou fontes e
         const card = document.createElement("article");
         card.className = "ref-card";
         card.setAttribute("data-tip", s.source);
+
+        // Artigos .md/.txt podem ser abertos para leitura.
+        const readable = /\.(md|txt)$/i.test(s.source);
+        if (readable) {
+            card.classList.add("ref-clickable");
+            card.addEventListener("click", () => openArticle(s.folder, s.source));
+        }
+
         card.innerHTML =
             `<div class="ref-head">` +
             `<span class="ref-index">${i + 1}</span>` +
             `<span class="ref-title">${escapeHtml(s.source)}</span>` +
+            (readable ? `<span class="ref-open" title="Ler artigo">↗</span>` : "") +
             `</div>` +
             `<div class="ref-meta">${escapeHtml(s.folder)} · ${escapeHtml(s.location || "trecho")}</div>` +
             (s.snippet

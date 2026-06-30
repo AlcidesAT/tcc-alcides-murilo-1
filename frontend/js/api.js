@@ -74,6 +74,13 @@ export async function listDocuments() {
     return data.documents || [];
 }
 
+export async function getArticleContent(folder, source) {
+    const path =
+        `/api/articles/${encodeURIComponent(folder)}` +
+        `/${encodeURIComponent(source)}/content`;
+    return request(path);
+}
+
 export async function createFolder(name) {
     return request("/api/folders", {
         method: "POST",

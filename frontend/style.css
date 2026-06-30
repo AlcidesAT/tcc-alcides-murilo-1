@@ -535,6 +535,94 @@ body.role-leitor .folder-docs .del-btn { display: none !important; }
 }
 .tooltip.show { opacity: 1; transform: translateY(0); }
 
+/* Card de referência clicável (artigos .md/.txt legíveis) */
+.ref-card.ref-clickable { cursor: pointer; }
+.ref-card.ref-clickable:hover {
+    border-color: var(--green);
+    background: #fff;
+}
+.ref-open {
+    flex-shrink: 0;
+    color: var(--green-deep);
+    font-size: 0.9rem;
+    font-weight: 700;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.ref-card.ref-clickable:hover .ref-open { opacity: 1; }
+
+/* Leitor de artigos */
+.reader {
+    width: 100%;
+    max-width: 760px;
+    height: 82vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+.reader-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--elevated);
+}
+.reader-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+}
+.reader-close {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.95rem;
+    transition: background 0.15s, color 0.15s;
+}
+.reader-close:hover { background: var(--hover); color: var(--text); }
+.reader-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 26px;
+    line-height: 1.6;
+    color: var(--text);
+}
+.reader-body h1, .reader-body h2, .reader-body h3, .reader-body h4 {
+    color: var(--green-deep);
+    margin: 18px 0 8px;
+}
+.reader-body p { margin: 0 0 12px; }
+.reader-body ul, .reader-body ol { margin: 8px 0 12px; padding-left: 24px; }
+.reader-body code {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 0.9em;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.reader-pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    margin: 0;
+}
+.reader-msg { color: var(--muted); text-align: center; padding: 30px; }
+.reader-msg.error { color: var(--danger); }
+
 .topbar {
     display: flex;
     align-items: center;
