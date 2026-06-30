@@ -57,6 +57,8 @@ Resposta:"""
 
 # Palavras muito comuns em português, ignoradas na busca por palavra-chave para
 # não diluir o sinal dos termos realmente informativos (ex.: "SUS", "biópsia").
+# Inclui também verbos/substantivos "de pergunta" (aborda, fala, trata, artigo…)
+# que aparecem em muitos textos e não dizem respeito ao tema consultado.
 _STOPWORDS = {
     "a", "o", "as", "os", "um", "uma", "uns", "umas", "de", "do", "da", "dos",
     "das", "no", "na", "nos", "nas", "em", "por", "para", "com", "sem", "sob",
@@ -64,6 +66,13 @@ _STOPWORDS = {
     "se", "ao", "aos", "à", "às", "the", "is", "of", "sobre", "entre", "ser",
     "sua", "seu", "suas", "seus", "isso", "este", "esta", "esse", "essa",
     "qual", "me", "minha", "meu", "ele", "ela", "foi", "são", "tem", "há",
+    "no", "nos", "do", "os", "pelo", "pela", "isto", "aquele", "aquela",
+    # Verbos e substantivos genéricos de enunciado (não indicam o tema):
+    "artigo", "artigos", "texto", "textos", "questao", "questoes", "assunto",
+    "aborda", "abordam", "abordar", "fala", "falam", "falar", "trata", "tratam",
+    "tratar", "diz", "dizem", "mostra", "mostram", "apresenta", "apresentam",
+    "explica", "explicam", "conta", "contam", "descreve", "descrevem",
+    "qual", "quais", "fazer", "faz", "sao", "estao", "esta",
 }
 
 

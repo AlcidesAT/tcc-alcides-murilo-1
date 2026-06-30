@@ -27,7 +27,9 @@ DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-LLM_MODEL = "llama3.2"
+# Modelo leve (~1,3 GB) para reduzir uso de RAM/pagefile. Para respostas mais
+# elaboradas, troque por "llama3.2" (3B) ou um modelo maior, se houver memória.
+LLM_MODEL = "llama3.2:1b"
 EMBEDDING_MODEL = "nomic-embed-text"
 
 CHUNK_SIZE = 1000
