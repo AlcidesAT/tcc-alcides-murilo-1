@@ -1,4 +1,4 @@
-# Script de inicialização do sistema RAG
+﻿# Script de inicialização do sistema RAG
 # Inicia o servidor FastAPI; o Ollama deve estar rodando separadamente.
 
 $ErrorActionPreference = "Stop"
