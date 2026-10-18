@@ -1,8 +1,8 @@
 /**
  * Ponto de entrada da aplicação.
  *
- * Aqui as três seções (pastas, upload e chat) são inicializadas e conectadas
- * ao estado global. O fluxo é:
+ * Aqui as seções (pastas, upload, chat e avaliação) são inicializadas e
+ * conectadas ao estado global. O fluxo é:
  *
  *   1. Cada módulo "init*" registra seus eventos de UI.
  *   2. `subscribe(...)` faz upload e chat reagirem a mudanças nos dados.
@@ -16,6 +16,7 @@ import { initReader } from "./reader.js";
 import { initFolders, loadFolders, renderFolders } from "./folders.js";
 import { initUpload, updateFolderSelector } from "./upload.js";
 import { initChat, updateScopeSelectors } from "./chat.js";
+import { initEvaluation } from "./evaluation.js";
 
 initAuth();
 initTooltips();
@@ -23,6 +24,7 @@ initReader();
 initFolders();
 initUpload();
 initChat();
+initEvaluation();
 
 subscribe((state) => {
     renderFolders(state);

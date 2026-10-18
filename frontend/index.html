@@ -58,6 +58,18 @@
                     <button id="upload-btn" class="primary" disabled>Indexar artigos</button>
                     <div id="upload-status" class="status"></div>
                 </section>
+
+                <!-- Avaliação da precisão das respostas (exclusivo do Administrador) -->
+                <section class="side-section admin-only">
+                    <div class="side-section-head">
+                        <span>Avaliação das respostas</span>
+                        <button id="eval-refresh" class="icon-btn" title="Atualizar">↻</button>
+                    </div>
+                    <div id="eval-summary" class="eval-summary">
+                        <p class="empty">Nenhuma avaliação ainda.</p>
+                    </div>
+                    <button id="eval-export" class="primary" disabled>Exportar CSV</button>
+                </section>
             </div>
 
             <div class="sidebar-foot">
@@ -117,6 +129,12 @@
                     </div>
 
                     <div class="composer-wrap">
+                        <!-- Memória de pergunta: perguntas anteriores consideradas -->
+                        <div class="memory-bar" id="memory-bar" hidden>
+                            <span class="memory-ic" aria-hidden="true">↻</span>
+                            <span id="memory-text"></span>
+                            <button type="button" class="memory-clear" id="memory-clear" title="Esquecer as perguntas anteriores desta conversa">Esquecer</button>
+                        </div>
                         <form id="ask-form" class="composer">
                             <textarea
                                 id="question"

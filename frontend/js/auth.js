@@ -45,13 +45,17 @@ export function initAuth() {
     });
 }
 
-/** Reflete o perfil atual no <body> e no rótulo/botão da sidebar. */
+/**
+ * Reflete o perfil atual no <body> e no rótulo/botão da sidebar e avisa os
+ * demais módulos pelo evento "rolechange" (ex.: o painel de avaliação).
+ */
 function applyRole() {
     const admin = api.isAdmin();
     document.body.classList.toggle("role-admin", admin);
     document.body.classList.toggle("role-leitor", !admin);
     profileRole.textContent = admin ? "Administrador" : "Leitor";
     profileBtn.textContent = admin ? "Sair" : "Entrar como admin";
+    document.dispatchEvent(new CustomEvent("rolechange", { detail: { admin } }));
 }
 
 function openModal() {

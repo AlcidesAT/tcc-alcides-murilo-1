@@ -13,6 +13,10 @@ env/
 data/vectorstore/*
 !data/vectorstore/.gitkeep
 
+# Resultados do benchmark (python evaluate.py) são gerados a cada execução.
+# O conjunto de perguntas (data/evaluation/perguntas.json) continua versionado.
+data/evaluation/resultados/
+
 # IDE / SO
 .vscode/
 .idea/

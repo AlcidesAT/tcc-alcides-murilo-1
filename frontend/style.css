@@ -980,6 +980,161 @@ body.role-leitor .folder-docs .del-btn { display: none !important; }
 .btn-solid:hover:not(:disabled) { opacity: 0.92; }
 .btn-solid:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ========================= Memória de pergunta ======================== */
+.memory-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 6px 8px;
+    padding: 6px 8px 6px 12px;
+    font-size: 0.78rem;
+    color: var(--green-deep);
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+.memory-bar[hidden] { display: none; }
+.memory-ic { font-weight: 700; }
+#memory-text { flex: 1; min-width: 0; }
+.memory-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+}
+.memory-clear:hover { background: var(--hover); color: var(--text); }
+
+.memory-tag {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 6px;
+    cursor: help;
+}
+
+.memory-divider {
+    align-self: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+    border-top: 1px dashed var(--border);
+    padding-top: 6px;
+    width: 100%;
+    text-align: center;
+}
+
+/* ===================== Avaliação da precisão (chat) =================== */
+.msg-footer {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+}
+
+.quality-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: help;
+}
+.quality-badge.level-alta { background: #e3f5ea; color: #1b6e43; border-color: #bfe5cd; }
+.quality-badge.level-media { background: #fdf3dc; color: #8a5a00; border-color: #f2dca6; }
+.quality-badge.level-baixa { background: #fde6e5; color: #a3322e; border-color: #f4c3c1; }
+.quality-badge.level-indefinido { background: var(--elevated); color: var(--muted); border-color: var(--border); }
+.quality-badge.level-acervo { background: #e2f0f2; color: var(--teal); border-color: #bcdbe0; }
+
+.feedback {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+.stars { display: inline-flex; }
+.star {
+    background: none;
+    border: none;
+    padding: 0 1px;
+    font-size: 1.05rem;
+    line-height: 1;
+    color: #c9d6d2;
+    transition: color 0.1s, transform 0.05s;
+}
+.star.on { color: #e9a92b; }
+.star:active { transform: scale(0.9); }
+.feedback-hint { min-width: 110px; font-size: 0.72rem; }
+.feedback-extra {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+}
+.feedback-extra[hidden] { display: none; }
+.feedback-extra textarea {
+    flex: 1 1 260px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 10px;
+    resize: vertical;
+}
+.feedback-extra textarea:focus { outline: none; border-color: var(--green); }
+.feedback-send {
+    background: var(--grad-soft);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.feedback-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.feedback-status { flex-basis: 100%; font-size: 0.72rem; }
+.feedback-status.error { color: var(--danger); }
+.feedback-done { color: var(--green-deep); font-weight: 600; }
+
+/* ================= Avaliação das respostas (sidebar admin) ============ */
+.eval-summary { margin-bottom: 10px; font-size: 0.78rem; color: rgba(255, 255, 255, 0.85); }
+.eval-summary .empty {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.8rem;
+    text-align: center;
+    margin: 0;
+    padding: 6px 0;
+}
+.eval-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.eval-tile {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+.eval-tile strong { font-size: 1.05rem; color: #fff; }
+.eval-tile strong small { font-size: 0.7rem; font-weight: 500; opacity: 0.7; }
+.eval-tile span { font-size: 0.68rem; color: rgba(255, 255, 255, 0.7); }
+.eval-bars { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.eval-bar { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
+.eval-bar > span:first-child { width: 22px; }
+.eval-bar > span:last-child { width: 22px; text-align: right; }
+.eval-bar-track { flex: 1; height: 6px; background: rgba(255, 255, 255, 0.14); border-radius: 3px; overflow: hidden; }
+.eval-bar-fill { height: 100%; background: #f5c35b; border-radius: 3px; }
+.eval-levels { font-size: 0.72rem; color: rgba(255, 255, 255, 0.75); margin-bottom: 4px; }
+.eval-levels b { color: #fff; }
+.eval-models { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.7rem; }
+.eval-models li { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; }
+.eval-model { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255, 255, 255, 0.85); }
+
 /* ============================== Responsivo ============================ */
 @media (max-width: 1024px) {
     /* Em telas estreitas a trilha some; os chips na mensagem mantêm as fontes. */

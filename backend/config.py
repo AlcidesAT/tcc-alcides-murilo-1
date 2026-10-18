@@ -22,15 +22,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DOCUMENTS_DIR = DATA_DIR / "documents"
 VECTORSTORE_DIR = DATA_DIR / "vectorstore"
+EVALUATION_DIR = DATA_DIR / "evaluation"  # conjunto de perguntas do benchmark
 
 DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 
-OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 # Modelo leve (~1,3 GB) para reduzir uso de RAM/pagefile. Para respostas mais
 # elaboradas, troque por "llama3.2" (3B) ou um modelo maior, se houver memória.
-LLM_MODEL = "llama3.2:1b"
-EMBEDDING_MODEL = "nomic-embed-text"
+# Pode ser sobrescrito no .env (LLM_MODEL=...), o que facilita comparar modelos
+# na avaliação de precisão sem alterar o código.
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:1b")
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
@@ -54,12 +58,43 @@ MMR_LAMBDA = 0.7
 REFERENCES_MAX = 5
 REFERENCES_MIN_RATIO = 0.45
 
+# Memória de pergunta (conversa):
+#  - MEMORY_MAX_TURNS: quantos pares pergunta/resposta anteriores são lembrados.
+#  - MEMORY_ANSWER_CHARS: tamanho máximo de cada resposta anterior levada ao
+#    modelo (as respostas são resumidas por corte para não estourar o contexto).
+MEMORY_MAX_TURNS = 4
+MEMORY_ANSWER_CHARS = 600
+
+# Avaliação automática da precisão (fundamentação da resposta nos trechos):
+#  - EVAL_SENTENCE_SUPPORT: fração mínima dos termos de uma frase da resposta
+#    que precisa aparecer nos trechos recuperados para a frase ser "fundamentada".
+#  - EVAL_MIN_SENTENCE_TERMS: frases com menos termos informativos são ignoradas
+#    (títulos, saudações, "Resposta:"...).
+#  - EVAL_LEVEL_HIGH / EVAL_LEVEL_MEDIUM: cortes da fundamentação para os níveis
+#    de confiança exibidos ao usuário (alta / média / baixa).
+EVAL_SENTENCE_SUPPORT = 0.6
+EVAL_MIN_SENTENCE_TERMS = 3
+EVAL_LEVEL_HIGH = 0.75
+EVAL_LEVEL_MEDIUM = 0.5
+
 COLLECTION_NAME = "artigos_cientificos"
 
 SUPPORTED_EXTENSIONS = {".pdf", ".md", ".txt"}
 MAX_UPLOAD_MB = 50
 
 DEFAULT_FOLDER = "geral"
+
+# Nomes de exibição dos assuntos (mesmos de frontend/js/folders.js), usados nas
+# respostas sobre o acervo.
+FOLDER_DISPLAY_NAMES = {
+    "ciencia-juridica": "Ciência Jurídica",
+    "ciencias-agrarias": "Ciências Agrárias",
+    "ciencias-da-educacao": "Ciências da Educação",
+    "ciencias-da-vida-e-saude": "Ciências da Vida e Saúde",
+    "ciencias-exatas-e-tecnologicas": "Ciências Exatas e Tecnológicas",
+    "ciencias-sociais": "Ciências Sociais",
+    "geral": "Geral",
+}
 MAX_FOLDER_NAME_LEN = 50
 
 DATABASE_URL = os.getenv(

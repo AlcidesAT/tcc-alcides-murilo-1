@@ -18,7 +18,7 @@ Uso (a partir da pasta `backend`):
 """
 
 from config import DOCUMENTS_DIR, SUPPORTED_EXTENSIONS, slugify_folder
-from rag_service import RAGService
+from rag import RAGService
 
 
 def main() -> None:

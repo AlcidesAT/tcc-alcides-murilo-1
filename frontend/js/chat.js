@@ -7,11 +7,23 @@
  *  - Renderizar mensagens em linhas (usuário à direita em balão, assistente
  *    à esquerda com avatar e texto pleno), indicador de digitação e fontes
  *  - Estado inicial (hero), "Nova conversa" e recolher/abrir a sidebar
+ *  - Memória de pergunta: envia o histórico da conversa e mostra quando a
+ *    pergunta foi reinterpretada com base nele (ver memory.js)
+ *  - Avaliação: selo de confiança automático e nota do usuário (feedback.js)
  */
 
 import * as api from "./api.js";
 import { escapeHtml, renderMarkdown } from "./utils.js";
 import { openArticle } from "./reader.js";
+import {
+    clearMemory,
+    getHistory,
+    initMemory,
+    memoryEpoch,
+    remember,
+    setMaxTurns,
+} from "./memory.js";
+import { buildFeedback, buildQualityBadge } from "./feedback.js";
 
 const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
@@ -43,6 +55,7 @@ export function initChat() {
     questionEl.addEventListener("input", autoResize);
 
     newChatBtn.addEventListener("click", newConversation);
+    initMemory({ onForget: appendMemoryDivider });
 
     collapseBtn.addEventListener("click", () => appEl.classList.add("sidebar-hidden"));
     openSidebarBtn.addEventListener("click", () => appEl.classList.remove("sidebar-hidden"));
@@ -65,9 +78,20 @@ function newConversation() {
     messagesEl.innerHTML = "";
     emptyState.hidden = false;
     questionEl.value = "";
+    clearMemory();
     setReferences(null, "As fontes que embasarem a resposta aparecerão aqui.");
     autoResize();
     questionEl.focus();
+}
+
+/** Marca na conversa o ponto em que a memória foi esquecida. */
+function appendMemoryDivider() {
+    if (!messagesEl.children.length) return;
+    const div = document.createElement("div");
+    div.className = "memory-divider";
+    div.textContent = "Memória esquecida — as próximas perguntas não consideram as anteriores";
+    messagesEl.appendChild(div);
+    scrollToBottom();
 }
 
 /**
@@ -161,6 +185,10 @@ async function handleSubmit(e) {
     const source =
         folder && !scopeArticleWrap.hidden && scopeArticle.value ? scopeArticle.value : null;
 
+    // Histórico capturado ANTES de registrar a pergunta atual.
+    const history = getHistory();
+    const askedAt = memoryEpoch();
+
     emptyState.hidden = true;
     appendUser(q);
     questionEl.value = "";
@@ -168,12 +196,16 @@ async function handleSubmit(e) {
     askBtn.disabled = true;
     setReferences(null, "Buscando referências…");
 
-    const bot = createBotMessage();
+    const bot = createBotMessage(q);
 
     try {
-        await api.askStream(q, folder, source, {
+        await api.askStream(q, folder, source, history, {
+            onMeta: (meta) => bot.setMeta(meta),
             onToken: (text) => bot.appendText(text),
-            onDone: (sources, scope) => bot.finalize(sources, scope),
+            onDone: (result) => {
+                bot.finalize(result);
+                remember(q, bot.text(), askedAt);
+            },
             onError: (err) => bot.fail(err.message),
         });
     } catch (err) {
@@ -204,11 +236,13 @@ function scopeText(scope) {
     return `Assunto: ${scope}`;
 }
 
+const normalize = (s) => String(s || "").trim().toLowerCase().replace(/[?!.\s]+$/, "");
+
 /**
  * Cria a mensagem do assistente já visível (com indicador de digitação) e
  * devolve helpers para preenchê-la enquanto a resposta chega em streaming.
  */
-function createBotMessage() {
+function createBotMessage(question) {
     const row = document.createElement("div");
     row.className = "msg-row assistant";
 
@@ -233,6 +267,7 @@ function createBotMessage() {
 
     let started = false;
     let rawText = "";
+    let meta = {};
 
     function ensureStarted() {
         if (started) return;
@@ -242,13 +277,38 @@ function createBotMessage() {
     }
 
     return {
+        text() {
+            return rawText;
+        },
         appendText(text) {
             ensureStarted();
             rawText += text;
             body.innerHTML = renderMarkdown(rawText);
             scrollToBottom();
         },
-        finalize(sources, scope) {
+        /** Antes da geração: mostra se a memória ajudou a entender a pergunta. */
+        setMeta(m) {
+            meta = m || {};
+            setMaxTurns(meta.memory_max_turns);
+            if (!meta.used_memory) return;
+
+            const tag = document.createElement("div");
+            tag.className = "memory-tag";
+            const rewritten = meta.standalone_question;
+            if (meta.memory_mode === "rewrite" && normalize(rewritten) !== normalize(question)) {
+                tag.textContent = `↻ Pergunta de acompanhamento · buscado como: “${rewritten}”`;
+            } else {
+                tag.textContent = "↻ Pergunta de acompanhamento: buscada junto com a pergunta anterior";
+            }
+            tag.setAttribute(
+                "data-tip",
+                "Esta pergunta depende da conversa. A memória considerou as perguntas " +
+                    "anteriores para buscar os trechos nos artigos.",
+            );
+            content.prepend(tag);
+        },
+        finalize(result) {
+            const { sources, scope } = result;
             ensureStarted();
             if (scope) {
                 const tag = document.createElement("div");
@@ -275,6 +335,25 @@ function createBotMessage() {
                 });
                 content.appendChild(box);
             }
+
+            const footer = document.createElement("div");
+            footer.className = "msg-footer";
+            const badge = buildQualityBadge(result.evaluation);
+            if (badge) footer.appendChild(badge);
+            footer.appendChild(
+                buildFeedback({
+                    question,
+                    standalone_question: result.standalone_question ?? meta.standalone_question,
+                    answer: rawText,
+                    scope,
+                    sources,
+                    used_memory: result.used_memory ?? meta.used_memory,
+                    evaluation: result.evaluation,
+                    model: result.model,
+                }),
+            );
+            content.appendChild(footer);
+
             setReferences(sources);
             scrollToBottom();
         },

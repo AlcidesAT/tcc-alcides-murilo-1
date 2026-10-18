@@ -1,0 +1,200 @@
+{
+  "descricao": "Conjunto de perguntas de referência para a avaliação da precisão do sistema RAG. Cada pergunta indica o(s) artigo(s) que deveriam fundamentar a resposta. Itens com 'historico' testam a memória de pergunta: a pergunta só faz sentido no contexto da conversa anterior. 'assunto' (opcional) restringe a busca a uma pasta; sem ele, a busca percorre todo o acervo.",
+  "perguntas": [
+    {
+      "id": "agr-01",
+      "pergunta": "Qual foi o efeito das doses de superfosfato simples no desenvolvimento da alface crespa?",
+      "artigos_esperados": ["ANÁLISE DE DIFERENTES DOSES DE SUPERFOSFATO SIMPLES APLICADAS NA.md"]
+    },
+    {
+      "id": "agr-02",
+      "pergunta": "Como o fertilizante biotecnológico Smartgran influenciou a produtividade da alface?",
+      "artigos_esperados": ["ANÁLISE DE DOSES CRESCENTES DE SMARTGRAN® NA CULTURA DE ALFACE.md"]
+    },
+    {
+      "id": "agr-03",
+      "pergunta": "Quais substratos tiveram suas propriedades físicas e químicas analisadas na aula prática?",
+      "artigos_esperados": ["ANÁLISE FÍSICA E QUÍMICA DE SUBSTRATOS RELATO DE AULA PRÁTICA.md"]
+    },
+    {
+      "id": "agr-04",
+      "pergunta": "Quais doses de ureia foram aplicadas no milho e o que o índice SPAD mediu?",
+      "artigos_esperados": ["APLICAÇÃO DE NITROGÊNIO NA CULTURA DO MILHO EM DIFERENTES DOSES.md"]
+    },
+    {
+      "id": "agr-05",
+      "pergunta": "Como o melão minimamente processado se conservou sob refrigeração?",
+      "artigos_esperados": ["AVALIAÇÃO DA CONSERVAÇÃO DO MELÃO EM PÓS-COLHEITA SUBMETIDO A.md"]
+    },
+    {
+      "id": "agr-06",
+      "pergunta": "A inoculação com a bactéria Bradyrhizobium melhorou as cultivares de amendoim?",
+      "artigos_esperados": ["AVALIAÇÃO DE CARACTERÍSTICAS AGRONÔMICAS DE CULTIVARES DE AMENDOIM.md"]
+    },
+    {
+      "id": "agr-07",
+      "pergunta": "Quais fertilizantes foliares foram testados na cultura do feijão?",
+      "artigos_esperados": ["AVALIAÇÃO DE DIFERENTES FERTILIZANTES FOLIARES.md"]
+    },
+    {
+      "id": "agr-08",
+      "pergunta": "Quais cultivares de soja receberam as doses de organomineral?",
+      "artigos_esperados": ["ORGANOMINERAL NA CULTURA DA SOJA.md"]
+    },
+    {
+      "id": "agr-09",
+      "pergunta": "Qual foi o efeito do boro na produtividade do feijão?",
+      "artigos_esperados": ["AVALIAR A PRODUTIVIDADE DA CULTURA DO FEIJÃO SUBMETIDA A DIFERENTES DOSES DE BORO. .md"]
+    },
+    {
+      "id": "agr-10",
+      "pergunta": "Qual o efeito do KBmaxi nas características agronômicas da alface em Maravilha?",
+      "artigos_esperados": ["AVALIAÇÃO DE CARACTERÍSTICAS AGRONÔMICAS DE CULTIVAR DE ALFACE.md"]
+    },
+    {
+      "id": "sau-01",
+      "pergunta": "Como se encontra a saúde mental dos servidores do SUS?",
+      "artigos_esperados": ["CUIDANDO DE QUEM CUIDA UM ESTUDO SOBRE A SAÚDE MENTAL DOS SERVIDORES DO SISTEMA ÚNICO DE SAÚDE (SUS).md"]
+    },
+    {
+      "id": "sau-02",
+      "pergunta": "Qual técnica de respiração foi usada para controlar a ansiedade das atletas de voleibol?",
+      "artigos_esperados": ["FORTALECENDO O TIME MOTIVAÇÃO E CONTROLE EMOCIONAL NO ESPORTE.md"]
+    },
+    {
+      "id": "sau-03",
+      "pergunta": "Como o vôlei adaptado contribui para a socialização dos idosos?",
+      "artigos_esperados": ["O IMPACTO DO ESPORTE O VOLEIBOL COMO ESTÍMULO PARA A SAÚDE E SOCIALIZAÇÃO NA MELHOR IDADE.md"]
+    },
+    {
+      "id": "sau-04",
+      "pergunta": "Qual é o papel do psicólogo no ambiente escolar?",
+      "artigos_esperados": ["OLHAR PARA ALÉM DA CLÍNICA A IMPORTÂNCIA DA PSICOLOGIA NO CONTEXTO ESCOLAR.md"]
+    },
+    {
+      "id": "sau-05",
+      "pergunta": "Qual a taxa de sucesso da remoção seletiva de cárie em lesões profundas?",
+      "artigos_esperados": ["Reflexões sobre Proteção Pulpar em Restauração com Cárie Extensa Evidências Atuais.md"]
+    },
+    {
+      "id": "sau-06",
+      "pergunta": "Como o consumo de açúcar favorece o surgimento de cáries?",
+      "artigos_esperados": ["Revisão de Literatura A Influência da Dieta na Cárie Dental.md"]
+    },
+    {
+      "id": "sau-07",
+      "pergunta": "Qual é o padrão-ouro para o diagnóstico de lesões bucais?",
+      "artigos_esperados": ["Técnicas de Biópsia e Remoção de Lesões Bucais Uma Revisão Atualizada.md"]
+    },
+    {
+      "id": "sau-08",
+      "pergunta": "Como foi o acolhimento dos idosos residentes da hospedagem visitada no estágio de Psicologia?",
+      "artigos_esperados": ["CONEXÕES HUMANAS HUMANIZANDO O CUIDADO NO ENVELHECIMENTO.md"]
+    },
+    {
+      "id": "tec-01",
+      "pergunta": "Quais ferramentas de IA integradas ao SketchUp foram comparadas para renderização?",
+      "artigos_esperados": ["ANÁLISE COMPARATIVA DE APLICAÇÃO DE IAS PARA A RENDERIZAÇÃO DE PROJETO ARQUITETÔNICO.md"]
+    },
+    {
+      "id": "tec-02",
+      "pergunta": "Quais funcionalidades o WebApp Bodega Club oferece aos pequenos comerciantes?",
+      "artigos_esperados": ["BODEGA CLUB LOJA DE BEBIDAS COM CLUBE DE ASSINATURA.md"]
+    },
+    {
+      "id": "tec-03",
+      "pergunta": "Como a inteligência artificial generativa ajuda a detectar vulnerabilidades em código-fonte?",
+      "artigos_esperados": ["IDENTIFICAÇÃO DE PROBLEMAS E FALHAS DE SEGURANÇA EM CÓDIGO DE PROGRAMAÇÃO UMA ABORDAGEM UTILIZANDO INTELIGÊNCIA ARTIFICIAL GENERATIVA.md"]
+    },
+    {
+      "id": "tec-04",
+      "pergunta": "Quais plataformas foram comparadas na produção de imagens de fachadas arquitetônicas?",
+      "artigos_esperados": ["INTELIGÊNCIA ARTIFICIAL UM COMPARATIVO - NA ÁREA DE PRODUÇÃO DE IMAGENS DE FACHADAS ARQUITETÔNICAS.md"]
+    },
+    {
+      "id": "tec-05",
+      "pergunta": "Como a inteligência artificial é usada na renderização de projetos arquitetônicos?",
+      "artigos_esperados": [
+        "INTELIGÊNCIA ARTIFICIAL NA ARQUITETURA INOVAÇÕES, DESAFIOS E IMPACTOS.md",
+        "ANÁLISE COMPARATIVA DE APLICAÇÃO DE IAS PARA A RENDERIZAÇÃO DE PROJETO ARQUITETÔNICO.md",
+        "A UTILIZAÇÃO DA INTELIGÊNCIA ARTIFICIAL COMO FERRAMENTA PARA O APERFEIÇOAMENTO DE IMAGENS RESIDENCIAIS EXTERNAS DE PROJETOS ARQUITETÔNICOS.md",
+        "INTELIGÊNCIA ARTIFICIAL UM COMPARATIVO - NA ÁREA DE PRODUÇÃO DE IMAGENS DE FACHADAS ARQUITETÔNICAS.md"
+      ]
+    },
+    {
+      "id": "tec-06",
+      "pergunta": "Como a binarização de Otsu se compara à segmentação por cor?",
+      "artigos_esperados": ["Técnicas de Segmentação de Imagens com Python Um Estudo Comparativo entre Binarização de Otsu e Segmentação por Cor.pdf"]
+    },
+    {
+      "id": "jur-01",
+      "pergunta": "A função social do contrato limita a liberdade contratual?",
+      "artigos_esperados": ["A FUNÇÃO SOCIAL DOS CONTRATOS COMO MECANISMO DE RESTRIÇÃO À LIBERDADE CONTRATUAL.md"]
+    },
+    {
+      "id": "jur-02",
+      "pergunta": "A fiança continua válida se locador e locatário alterarem o contrato sem o fiador?",
+      "artigos_esperados": ["AS ALTERAÇÕES NO CONTRATO DE LOCAÇÃO DE IMÓVEIS URBANOS SEM ANUÊNCIA DO FIADOR MANUTENÇÃO OU NÃO DA FIANÇA.md"]
+    },
+    {
+      "id": "jur-03",
+      "pergunta": "Cláusulas empresariais podem ser incluídas em pactos antenupciais?",
+      "artigos_esperados": ["PACTO ANTENUPCIAL COMO PROTEÇÃO AOS DIREITOS DA PERSONALIDADE.md"]
+    },
+    {
+      "id": "mem-01",
+      "historico": [
+        {
+          "pergunta": "Qual o objetivo do estudo sobre a saúde mental dos servidores do SUS?",
+          "resposta": "O estudo buscou compreender como se encontra a saúde mental dos servidores do Sistema Único de Saúde e como isso influencia a qualidade do atendimento."
+        }
+      ],
+      "pergunta": "Quantas pessoas participaram e como os dados foram coletados?",
+      "artigos_esperados": ["CUIDANDO DE QUEM CUIDA UM ESTUDO SOBRE A SAÚDE MENTAL DOS SERVIDORES DO SISTEMA ÚNICO DE SAÚDE (SUS).md"]
+    },
+    {
+      "id": "mem-02",
+      "historico": [
+        {
+          "pergunta": "O que o estudo sobre nitrogênio no milho avaliou?",
+          "resposta": "Avaliou os efeitos de diferentes doses de nitrogênio, na forma de ureia, sobre o crescimento e o acúmulo de biomassa do milho, além da clorofila foliar medida pelo índice SPAD."
+        }
+      ],
+      "pergunta": "E qual foi o delineamento experimental usado?",
+      "artigos_esperados": ["APLICAÇÃO DE NITROGÊNIO NA CULTURA DO MILHO EM DIFERENTES DOSES.md"]
+    },
+    {
+      "id": "mem-03",
+      "historico": [
+        {
+          "pergunta": "Quais plataformas de IA foram comparadas na produção de imagens de fachadas arquitetônicas?",
+          "resposta": "Foram comparadas as plataformas Prome AI, ReRender AI e Mnml.AI."
+        }
+      ],
+      "pergunta": "Quais limitações foram encontradas nelas?",
+      "artigos_esperados": ["INTELIGÊNCIA ARTIFICIAL UM COMPARATIVO - NA ÁREA DE PRODUÇÃO DE IMAGENS DE FACHADAS ARQUITETÔNICAS.md"]
+    },
+    {
+      "id": "mem-04",
+      "historico": [
+        {
+          "pergunta": "Como a dieta influencia a cárie dental?",
+          "resposta": "O consumo excessivo de açúcares e alimentos processados favorece a formação de ácidos que desmineralizam os dentes, tornando-os mais suscetíveis às cáries."
+        }
+      ],
+      "pergunta": "Quais nutrientes ajudam a prevenir esse problema?",
+      "artigos_esperados": ["Revisão de Literatura A Influência da Dieta na Cárie Dental.md"]
+    },
+    {
+      "id": "mem-05",
+      "historico": [
+        {
+          "pergunta": "A fiança continua válida se o contrato de locação for alterado sem a anuência do fiador?",
+          "resposta": "Segundo o estudo, a fiança é acessória ao contrato de locação e, não havendo notificação de resilição pelo fiador, ela se mantém mesmo com aditivos contratuais, entendimento seguido pelo TJSC e pelo STJ."
+        }
+      ],
+      "pergunta": "Qual lei regula esse tipo de contrato?",
+      "artigos_esperados": ["AS ALTERAÇÕES NO CONTRATO DE LOCAÇÃO DE IMÓVEIS URBANOS SEM ANUÊNCIA DO FIADOR MANUTENÇÃO OU NÃO DA FIANÇA.md"]
+    }
+  ]
+}

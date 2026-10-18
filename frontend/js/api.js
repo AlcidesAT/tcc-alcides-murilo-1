@@ -114,25 +114,30 @@ export async function uploadFile(folder, file) {
     });
 }
 
-export async function ask(question, folder, source) {
+/**
+ * `history` é a memória da conversa: lista de { question, answer } das
+ * perguntas anteriores (o backend usa só as mais recentes).
+ */
+export async function ask(question, folder, source, history = []) {
     return request("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, folder, source }),
+        body: JSON.stringify({ question, folder, source, history }),
     });
 }
 
 /**
  * Versão em streaming de `ask`. Lê uma resposta NDJSON e chama os callbacks:
- *   onToken(text)            — a cada pedaço de texto gerado
- *   onDone(sources, scope)   — ao final, com as fontes e o escopo
- *   onError(error)           — em caso de erro durante a geração
+ *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
+ *   onToken(text)    — a cada pedaço de texto gerado
+ *   onDone(result)   — ao final: { sources, scope, evaluation, model, ... }
+ *   onError(error)   — em caso de erro durante a geração
  */
-export async function askStream(question, folder, source, { onToken, onDone, onError }) {
+export async function askStream(question, folder, source, history, { onMeta, onToken, onDone, onError }) {
     const res = await fetch("/api/ask/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, folder, source }),
+        body: JSON.stringify({ question, folder, source, history }),
     });
 
     if (!res.ok || !res.body) {
@@ -169,8 +174,45 @@ export async function askStream(question, folder, source, { onToken, onDone, onE
             }
 
             if (msg.type === "token") onToken?.(msg.text);
-            else if (msg.type === "done") onDone?.(msg.sources, msg.scope);
+            else if (msg.type === "meta") onMeta?.(msg);
+            else if (msg.type === "done") onDone?.(msg);
             else if (msg.type === "error") onError?.(new Error(msg.detail));
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Avaliação da precisão das respostas
+// ---------------------------------------------------------------------------
+
+export async function sendEvaluation(payload) {
+    return request("/api/evaluations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function getEvaluationSummary() {
+    return request("/api/evaluations/summary", { headers: adminHeaders() });
+}
+
+/** Baixa o CSV de avaliações (precisa do cabeçalho de admin, por isso via fetch). */
+export async function downloadEvaluationsCsv() {
+    const res = await fetch("/api/evaluations/export", { headers: adminHeaders() });
+    if (!res.ok) {
+        let detail = `Erro HTTP ${res.status}`;
+        try {
+            detail = (await res.json()).detail || detail;
+        } catch {
+            /* corpo não-JSON */
+        }
+        throw new Error(detail);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "avaliacoes-respostas.csv";
+    a.click();
+    URL.revokeObjectURL(url);
 }

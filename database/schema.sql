@@ -65,6 +65,32 @@ CREATE TABLE IF NOT EXISTS question_sources (
 
 CREATE INDEX IF NOT EXISTS idx_question_sources_created_at ON question_sources (created_at DESC);
 
+-- ---------------------------------------------------------------------------
+-- Tabela: answer_evaluations
+-- Avaliação da precisão das respostas feita pelo usuário (nota de 1 a 5 e
+-- comentário opcional). Só é gravada quando o usuário escolhe avaliar; por
+-- isso guarda o par pergunta/resposta, as fontes, as métricas automáticas
+-- (fundamentação e cobertura) e o modelo usado — base da análise de precisão.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS answer_evaluations (
+    id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    question             TEXT          NOT NULL,
+    standalone_question  TEXT,
+    answer               TEXT          NOT NULL,
+    scope                VARCHAR(255),
+    sources              JSONB,
+    used_memory          BOOLEAN       DEFAULT FALSE,
+    rating               SMALLINT      NOT NULL CONSTRAINT ck_answer_evaluations_rating CHECK (rating BETWEEN 1 AND 5),
+    comment              TEXT,
+    groundedness         DOUBLE PRECISION,
+    question_coverage    DOUBLE PRECISION,
+    level                VARCHAR(20),
+    llm_model            VARCHAR(100),
+    created_at           TIMESTAMP     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_answer_evaluations_created_at ON answer_evaluations (created_at DESC);
+
 -- ===========================================================================
 -- NOTA — Autenticação de usuários
 -- A camada de login/cadastro (tabela `users` e vínculo `articles.user_id`)
