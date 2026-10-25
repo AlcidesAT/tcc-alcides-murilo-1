@@ -66,11 +66,50 @@ CREATE TABLE IF NOT EXISTS question_sources (
 CREATE INDEX IF NOT EXISTS idx_question_sources_created_at ON question_sources (created_at DESC);
 
 -- ---------------------------------------------------------------------------
+-- Tabela: participant_sessions
+-- Cada entrada com o login da turma (participante dos testes). Todos usam o
+-- mesmo login; cada entrada é uma sessão anônima, que agrupa as perguntas,
+-- as notas e o questionário de um participante sem guardar nomes.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS participant_sessions (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    token       VARCHAR(64)  NOT NULL UNIQUE,
+    username    VARCHAR(50)  NOT NULL,
+    started_at  TIMESTAMP    NOT NULL DEFAULT now(),
+    ended_at    TIMESTAMP
+);
+
+-- ---------------------------------------------------------------------------
+-- Tabela: interactions
+-- Perguntas feitas com o login da turma e as respostas geradas, com as
+-- métricas automáticas, o modelo e o tempo de resposta (coleta da pesquisa).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS interactions (
+    id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id           UUID          REFERENCES participant_sessions(id),
+    question             TEXT          NOT NULL,
+    standalone_question  TEXT,
+    answer               TEXT          NOT NULL,
+    scope                VARCHAR(255),
+    sources              JSONB,
+    memory_mode          VARCHAR(20),
+    groundedness         DOUBLE PRECISION,
+    question_coverage    DOUBLE PRECISION,
+    level                VARCHAR(20),
+    llm_model            VARCHAR(100),
+    response_ms          INTEGER,
+    created_at           TIMESTAMP     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_interactions_session_id ON interactions (session_id);
+CREATE INDEX IF NOT EXISTS ix_interactions_created_at ON interactions (created_at DESC);
+
+-- ---------------------------------------------------------------------------
 -- Tabela: answer_evaluations
--- Avaliação da precisão das respostas feita pelo usuário (nota de 1 a 5 e
--- comentário opcional). Só é gravada quando o usuário escolhe avaliar; por
--- isso guarda o par pergunta/resposta, as fontes, as métricas automáticas
--- (fundamentação e cobertura) e o modelo usado — base da análise de precisão.
+-- Nota de precisão (1 a 5) e comentário que um participante deu a uma
+-- resposta. Guarda o par pergunta/resposta, as fontes, as métricas
+-- automáticas (fundamentação e cobertura) e o modelo usado, e aponta para a
+-- pergunta coletada (interaction_id). Uma nova nota substitui a anterior.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS answer_evaluations (
     id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -86,14 +125,39 @@ CREATE TABLE IF NOT EXISTS answer_evaluations (
     question_coverage    DOUBLE PRECISION,
     level                VARCHAR(20),
     llm_model            VARCHAR(100),
+    session_id           UUID          REFERENCES participant_sessions(id),
+    interaction_id       UUID          REFERENCES interactions(id),
     created_at           TIMESTAMP     NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS ix_answer_evaluations_created_at ON answer_evaluations (created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_answer_evaluations_session_id ON answer_evaluations (session_id);
+CREATE INDEX IF NOT EXISTS ix_answer_evaluations_interaction_id ON answer_evaluations (interaction_id);
+
+-- Bancos criados antes destas colunas existirem (o app aplica isto sozinho):
+ALTER TABLE answer_evaluations
+    ADD COLUMN IF NOT EXISTS session_id UUID REFERENCES participant_sessions(id),
+    ADD COLUMN IF NOT EXISTS interaction_id UUID REFERENCES interactions(id);
+
+-- ---------------------------------------------------------------------------
+-- Tabela: survey_responses
+-- Questionário de avaliação do sistema: uma resposta por sessão de
+-- participante. `answers` = {id da afirmação: nota 1 a 5}; as afirmações
+-- ficam em data/evaluation/questionario.json.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS survey_responses (
+    id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id      UUID         NOT NULL UNIQUE REFERENCES participant_sessions(id),
+    survey_version  VARCHAR(20),
+    answers         JSONB        NOT NULL,
+    comment         TEXT,
+    created_at      TIMESTAMP    NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMP    NOT NULL DEFAULT now()
+);
 
 -- ===========================================================================
 -- NOTA — Autenticação de usuários
--- A camada de login/cadastro (tabela `users` e vínculo `articles.user_id`)
--- será adicionada na SEGUNDA ENTREGA do TCC. Quando isso ocorrer, recrie a
--- tabela `users` e adicione a coluna/foreign key correspondente em `articles`.
+-- Por enquanto há dois logins fixos, definidos no .env: o do Administrador e o
+-- login da turma (compartilhado pelos participantes dos testes). Um cadastro
+-- de usuários individuais (tabela `users`) pode ser adicionado depois.
 -- ===========================================================================

@@ -2,7 +2,8 @@
 Esquemas Pydantic (entrada/saída) da API.
 """
 
-from typing import List, Optional
+import uuid
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -32,14 +33,17 @@ class AskResponse(BaseModel):
     memory_mode: str
     memory_turns: int
     memory_max_turns: int
+    interaction_id: Optional[str] = None  # pergunta registrada (login da turma)
+    collected: bool = False
 
 
 class CreateFolderRequest(BaseModel):
     name: str
 
 
-class AdminLoginRequest(BaseModel):
-    password: str
+class LoginRequest(BaseModel):
+    username: str = Field(max_length=50)
+    password: str = Field(max_length=200)
 
 
 class AutoMetrics(BaseModel):
@@ -49,8 +53,13 @@ class AutoMetrics(BaseModel):
 
 
 class EvaluationRequest(BaseModel):
-    """Nota do usuário para uma resposta, com o contexto da resposta avaliada."""
+    """Nota do participante para uma resposta, com o contexto da resposta avaliada.
 
+    Com `interaction_id` (pergunta coletada), o servidor usa os dados gravados
+    da pergunta; os demais campos ficam como reserva.
+    """
+
+    interaction_id: Optional[uuid.UUID] = None
     question: str = Field(min_length=1, max_length=4000)
     standalone_question: Optional[str] = Field(default=None, max_length=4000)
     answer: str = Field(min_length=1, max_length=20000)
@@ -61,3 +70,10 @@ class EvaluationRequest(BaseModel):
     comment: Optional[str] = Field(default=None, max_length=2000)
     metrics: AutoMetrics = Field(default_factory=AutoMetrics)
     model: Optional[str] = Field(default=None, max_length=100)
+
+
+class SurveyRequest(BaseModel):
+    """Questionário de avaliação do sistema: {id da afirmação: nota 1 a 5}."""
+
+    answers: Dict[str, int]
+    comment: Optional[str] = Field(default=None, max_length=4000)

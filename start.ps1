@@ -22,14 +22,22 @@ Write-Host "[setup] Instalando dependências (apenas se necessário)..."
 # arquivo de paginação do Windows no SSD). Vale para o Ollama iniciado abaixo.
 $env:OLLAMA_KEEP_ALIVE = "60s"
 
+# Reserva 1 GB da placa de vídeo para os outros programas abertos (navegador,
+# Discord...). O que não couber na placa vai para a RAM: as respostas ficam um
+# pouco mais lentas (~12-25 s neste PC), mas o modelo não falha com
+# "cudaMalloc failed: out of memory". Vale para o Ollama iniciado abaixo.
+$env:OLLAMA_GPU_OVERHEAD = "1073741824"
+
 Write-Host "[check] Verificando se o Ollama está acessível em http://localhost:11434 ..."
 $ollamaUp = $false
 try {
     $null = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 3
     $ollamaUp = $true
     Write-Host "[ok] Ollama já está rodando." -ForegroundColor Green
+    Write-Host "     A folga de memória da placa só vale se o Ollama foi iniciado por este script." -ForegroundColor Yellow
+    Write-Host "     Se aparecer 'cudaMalloc failed: out of memory', feche o Ollama (ícone na bandeja) e rode este script de novo." -ForegroundColor Yellow
 } catch {
-    Write-Host "[run] Ollama não respondeu — iniciando 'ollama serve' (OLLAMA_KEEP_ALIVE=60s) ..."
+    Write-Host "[run] Ollama não respondeu — iniciando 'ollama serve' (OLLAMA_KEEP_ALIVE=60s, folga de 1 GB na placa) ..."
     try {
         Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
         for ($i = 0; $i -lt 10 -and -not $ollamaUp; $i++) {

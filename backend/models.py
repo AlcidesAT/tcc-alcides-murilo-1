@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     Integer,
     SmallInteger,
     String,
@@ -58,14 +59,78 @@ class QuestionSource(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class AnswerEvaluation(Base):
-    """Avaliação da precisão de uma resposta, feita pelo usuário na interface.
+class ParticipantSession(Base):
+    """Uma entrada com o login da turma (participante dos testes com usuários).
 
-    Só é gravada quando o usuário dá uma nota (1 a 5) — por isso, diferente do
-    log de fontes, guarda o par pergunta/resposta: sem ele não há como analisar
-    a avaliação. Junto ficam as métricas automáticas calculadas no momento da
-    resposta e o modelo usado, permitindo comparar a nota humana com a
-    fundamentação medida e comparar modelos/versões do sistema.
+    Todos usam o mesmo login, mas cada entrada vira uma sessão anônima: dá para
+    contar participantes e agrupar perguntas, notas e o questionário sem
+    guardar nomes. O token é o que o navegador envia em `X-Auth-Token`; por
+    ficar no banco, continua válido se o servidor for reiniciado.
+    """
+
+    __tablename__ = "participant_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token = Column(String(64), nullable=False, unique=True, index=True)
+    username = Column(String(50), nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime)  # preenchido ao clicar em "Sair"
+
+
+class Interaction(Base):
+    """Pergunta feita por um participante e a resposta gerada (coleta da pesquisa).
+
+    Gravada pelo servidor ao fim de cada resposta, com as métricas automáticas,
+    o modelo e o tempo de resposta. As notas por estrelas (AnswerEvaluation)
+    apontam para cá.
+    """
+
+    __tablename__ = "interactions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("participant_sessions.id"), index=True)
+    question = Column(Text, nullable=False)
+    standalone_question = Column(Text)  # como a memória buscou a pergunta
+    answer = Column(Text, nullable=False)
+    scope = Column(String(255))
+    sources = Column(JSONB)  # [{folder, source, location}]
+    memory_mode = Column(String(20))  # none / rewrite / expansion
+    groundedness = Column(Float)
+    question_coverage = Column(Float)
+    level = Column(String(20))
+    llm_model = Column(String(100))
+    response_ms = Column(Integer)  # da pergunta ao fim da resposta
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class SurveyResponse(Base):
+    """Questionário de avaliação do sistema (um por sessão de participante).
+
+    `answers` guarda {id_da_afirmação: nota de 1 a 5}; as afirmações ficam em
+    data/evaluation/questionario.json, e `survey_version` indica qual versão
+    do questionário foi respondida.
+    """
+
+    __tablename__ = "survey_responses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(
+        UUID(as_uuid=True), ForeignKey("participant_sessions.id"), unique=True, nullable=False
+    )
+    survey_version = Column(String(20))
+    answers = Column(JSONB, nullable=False)
+    comment = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AnswerEvaluation(Base):
+    """Nota de precisão (1 a 5) que um participante deu a uma resposta.
+
+    Guarda o par pergunta/resposta e as métricas automáticas calculadas no
+    momento da resposta, permitindo comparar a nota humana com a fundamentação
+    medida e comparar modelos/versões do sistema. `interaction_id` liga a nota
+    à pergunta coletada; uma nova nota para a mesma pergunta substitui a anterior.
     """
 
     __tablename__ = "answer_evaluations"
@@ -84,4 +149,6 @@ class AnswerEvaluation(Base):
     question_coverage = Column(Float)  # cobertura da pergunta pelos trechos (0 a 1)
     level = Column(String(20))  # alta / media / baixa / indefinido
     llm_model = Column(String(100))
+    session_id = Column(UUID(as_uuid=True), ForeignKey("participant_sessions.id"), index=True)
+    interaction_id = Column(UUID(as_uuid=True), ForeignKey("interactions.id"), index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

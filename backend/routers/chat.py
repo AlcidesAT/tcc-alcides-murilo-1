@@ -3,13 +3,14 @@ Perguntas em linguagem natural (com memória da conversa).
 """
 
 import json
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from config import slugify_folder
-from dependencies import get_rag
-from persistence import save_sources
+from dependencies import Principal, get_principal, get_rag
+from persistence import save_interaction, save_sources
 from rag import RAGContext, RAGService
 from schemas import AskRequest, AskResponse
 
@@ -50,8 +51,22 @@ def _prepare(payload: AskRequest, rag: RAGService) -> RAGContext:
         ) from exc
 
 
+def _collect(principal: Principal, ctx: RAGContext, result: dict, started: float) -> dict:
+    """Com o login da turma, registra a pergunta e a resposta no banco."""
+    interaction_id = None
+    if principal.is_participant:
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
+    return {"interaction_id": interaction_id, "collected": interaction_id is not None}
+
+
 @router.post("/ask", response_model=AskResponse)
-def ask(payload: AskRequest, rag: RAGService = Depends(get_rag)):
+def ask(
+    payload: AskRequest,
+    rag: RAGService = Depends(get_rag),
+    principal: Principal = Depends(get_principal),
+):
+    started = time.perf_counter()
     ctx = _prepare(payload, rag)
     try:
         answer = rag.generate(ctx)
@@ -62,7 +77,8 @@ def ask(payload: AskRequest, rag: RAGService = Depends(get_rag)):
         ) from exc
 
     save_sources(ctx.sources)
-    return rag.result(ctx, answer)
+    result = rag.result(ctx, answer)
+    return {**result, **_collect(principal, ctx, result, started)}
 
 
 def _event(data: dict) -> str:
@@ -70,15 +86,22 @@ def _event(data: dict) -> str:
 
 
 @router.post("/ask/stream")
-def ask_stream(payload: AskRequest, rag: RAGService = Depends(get_rag)):
+def ask_stream(
+    payload: AskRequest,
+    rag: RAGService = Depends(get_rag),
+    principal: Principal = Depends(get_principal),
+):
     """Versão em streaming: emite NDJSON (uma linha JSON por evento).
 
     Eventos, em ordem:
       {"type":"meta", "standalone_question", "used_memory", "memory_turns", ...}
       {"type":"token","text":...}  (vários, durante a geração)
-      {"type":"done","sources":[...],"scope":...,"evaluation":{...},"model":...}
-    Erros durante a geração viram {"type":"error","detail":...}.
+      {"type":"done","sources":[...],"scope":...,"evaluation":{...},"model":...,
+       "interaction_id":..., "collected":...}
+    Erros durante a geração viram {"type":"error","detail":...}. Com o login da
+    turma, a pergunta é registrada antes do evento "done" (que leva o id).
     """
+    started = time.perf_counter()
     # Memória + recuperação acontecem antes do streaming para que falhas (ex.:
     # Ollama indisponível ao gerar embeddings) retornem um status HTTP adequado.
     ctx = _prepare(payload, rag)
@@ -96,8 +119,9 @@ def ask_stream(payload: AskRequest, rag: RAGService = Depends(get_rag)):
             return
 
         result = rag.result(ctx, "".join(parts))
+        collected = _collect(principal, ctx, result, started)
         result.pop("answer")  # o texto já foi enviado token a token
-        yield _event({"type": "done", **result})
+        yield _event({"type": "done", **result, **collected})
 
         save_sources(ctx.sources)
 

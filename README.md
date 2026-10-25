@@ -8,14 +8,16 @@ A aplicação permite que o usuário envie artigos científicos (PDF, Markdown o
 
 ```
 Frontend (HTML/CSS/JS — módulos ES)
-   chat · memória da conversa · avaliação (estrelas) · painel admin
+   chat · memória da conversa · estrelas · questionário · painel admin
         |
         v
 FastAPI (backend/main.py)  — só monta o app
-   routers/admin.py       login do Administrador
-   routers/library.py     assuntos, artigos, upload, remoção
-   routers/chat.py        perguntas (com histórico) e streaming NDJSON
-   routers/evaluation.py  notas dos usuários, resumo e exportação CSV
+   routers/auth.py          login da turma e do Administrador
+   routers/library.py       assuntos, artigos, upload, remoção
+   routers/chat.py          perguntas (com histórico), streaming e coleta
+   routers/evaluation.py    notas das respostas, resumo e CSV
+   routers/survey.py        questionário de avaliação do sistema
+   routers/interactions.py  perguntas coletadas: resumo e CSV
         |
         v
 rag/service.py (RAGService)
@@ -25,7 +27,8 @@ rag/service.py (RAGService)
    4. evaluation.py  fundamentação da resposta nos trechos
         |
         +-> Embeddings (Ollama: nomic-embed-text) -> Chroma (data/vectorstore)
-        +-> PostgreSQL: articles, question_sources, answer_evaluations
+        +-> PostgreSQL: articles, question_sources, participant_sessions,
+                        interactions, answer_evaluations, survey_responses
 ```
 
 A separação em dois módulos — **recuperação** e **geração** — segue exatamente a estrutura descrita por Cozman et al. (2025) na proposta do TCC. Na segunda etapa, o backend foi reorganizado em camadas (rotas → serviço → componentes do RAG): o antigo `rag_service.py` virou o pacote `rag/`, com uma única implementação do BM25 (antes repetida em três lugares), e o `main.py` passou a apenas montar a aplicação. As rotas `/api/ask` e `/api/ask/stream` compartilham o mesmo fluxo (`prepare → gerar → avaliar`).
@@ -43,7 +46,7 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
 | Banco de dados | PostgreSQL (metadados, log de fontes e avaliações via SQLAlchemy) |
 | Frontend | HTML, CSS e JavaScript puros |
 
-> **Perfis de acesso**: nesta versão o sistema prevê a seleção de dois perfis de usuário — **Leitor** e **Administrador**. O perfil Leitor (padrão) acessa apenas a consulta dos artigos indexados, podendo fazer perguntas em linguagem natural e obter respostas fundamentadas na base de conhecimento. O perfil Administrador possui permissões adicionais: envio, organização e indexação de novos artigos (além da remoção de pastas/artigos). Para entrar como Administrador, clique em **"Entrar como admin"** no rodapé do menu lateral e informe a senha definida em `ADMIN_PASSWORD` (veja `.env.example`). O cadastro de múltiplos usuários no banco (tabela `users`) fica para a **segunda entrega** — por enquanto o acesso de Administrador é protegido por uma única senha.
+> **Perfis de acesso**: o sistema tem três perfis. O **Leitor** (padrão, sem login) apenas consulta os artigos indexados; nada é registrado. O **Participante** entra com o **login da turma**, compartilhado por todos nos testes com usuários: suas perguntas, as respostas, as notas por estrelas e o questionário de avaliação vão para o banco de registro, em sessões anônimas (veja [Testes com usuários](#testes-com-usuários-login-da-turma)). O **Administrador** envia, organiza e indexa artigos e acessa os dados coletados. Os dois logins ficam no `.env` (`ADMIN_USER`/`ADMIN_PASSWORD` e `PARTICIPANT_USER`/`PARTICIPANT_PASSWORD`); para entrar, clique em **"Entrar"** no rodapé do menu lateral.
 
 > **Sobre o "EasyRAG"**: no projeto, a recuperação simples e direta proposta no TCC é implementada com os componentes nativos do LangChain (`Chroma` como vector store + `as_retriever`), formando um pipeline RAG enxuto e fácil de manter. Caso queira substituir por uma biblioteca específica, basta trocar a implementação dentro de [backend/rag/retrieval.py](backend/rag/retrieval.py) — o restante do sistema permanece igual.
 
@@ -87,6 +90,8 @@ continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tcc_rag
    ```
 
+   No mesmo `.env`, defina as senhas dos logins (`ADMIN_PASSWORD` e `PARTICIPANT_PASSWORD`). O `.env` está no `.gitignore`: senhas nunca devem ir para o `.env.example` nem para o código.
+
 3. As tabelas são criadas **automaticamente** quando o servidor inicia
    (SQLAlchemy). Se preferir criá-las manualmente, rode o script de esquema:
 
@@ -106,7 +111,7 @@ continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
 ./start.ps1
 ```
 
-O script cria o ambiente virtual `.venv`, instala as dependências, verifica o Ollama e inicia o servidor em `http://127.0.0.1:8000`.
+O script cria o ambiente virtual `.venv`, instala as dependências, verifica o Ollama e inicia o servidor em `http://127.0.0.1:8000`. Se o Ollama não estiver rodando, o script o inicia com uma **folga de 1 GB na placa de vídeo** (`OLLAMA_GPU_OVERHEAD`): o que não couber na placa vai para a RAM. Isso evita o erro de falta de memória de vídeo quando outros programas estão abertos (veja [Solução de problemas](#solução-de-problemas)).
 
 ### Opção B — manual
 
@@ -126,10 +131,27 @@ Abra o navegador em **<http://127.0.0.1:8000>**.
 1. Garanta que o `ollama serve` esteja rodando em outro terminal.
 2. Acesse `http://127.0.0.1:8000` no navegador. Você entra como **Leitor**.
 3. **Como Leitor**: digite uma pergunta no campo inferior e pressione **Enter** ou clique em enviar. Opcionalmente, restrinja a busca a um assunto/artigo no seletor do topo. A resposta aparece com os **trechos-fonte** que embasaram a geração — o comportamento de rastreabilidade citado na proposta do TCC.
-4. **Para enviar/gerenciar artigos** (perfil Administrador): clique em **"Entrar como admin"** no rodapé do menu lateral e informe a senha (`ADMIN_PASSWORD`). As seções de criação de assuntos e envio de artigos passam a aparecer.
+4. **Para enviar/gerenciar artigos** (perfil Administrador): clique em **"Entrar"** no rodapé do menu lateral e informe o usuário e a senha do administrador (`ADMIN_USER`/`ADMIN_PASSWORD`). As seções de criação de assuntos e envio de artigos passam a aparecer.
 5. Como Administrador, crie um assunto, selecione-o, arraste ou clique para escolher os arquivos (PDF/MD/TXT) e clique em **"Indexar artigos"**. A primeira indexação pode demorar enquanto os embeddings são calculados.
 6. Para voltar ao perfil Leitor, clique em **"Sair"** no mesmo local.
-7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática) e **estrelas de 1 a 5** para avaliar a precisão. Como Administrador, a seção **"Avaliação das respostas"** do menu lateral mostra os indicadores e exporta tudo em CSV.
+7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática). Com o login da turma aparecem também as **estrelas de 1 a 5** para avaliar a precisão e o botão **"★ Avaliar o sistema"** no topo. Como Administrador, a seção **"Coleta da pesquisa"** do menu lateral mostra os indicadores e exporta tudo em CSV.
+
+## Testes com usuários (login da turma)
+
+Para a aplicação com a turma, todos usam o **mesmo login**: o usuário é `turma` (ou o definido em `PARTICIPANT_USER`) e a senha é a que vocês definirem em `PARTICIPANT_PASSWORD` no `.env`. As senhas ficam **só no `.env`**, que está fora do Git: o código não tem senha padrão, e um login sem senha definida fica desativado. Cada vez que alguém entra, o sistema abre uma **sessão anônima** no banco: dá para contar quantas pessoas participaram e agrupar os dados de cada uma sem guardar nomes. O login da turma depende do PostgreSQL; se o banco estiver fora do ar, ele é recusado em vez de deixar alguém usar o sistema sem que nada seja registrado.
+
+Com o login da turma, a interface mostra o aviso "Registrando para a pesquisa" e registra:
+
+| O quê | Tabela | Quando |
+| --- | --- | --- |
+| Sessão do participante | `participant_sessions` | ao entrar (e a saída, ao clicar em "Sair") |
+| Pergunta, resposta, fontes, métricas automáticas, modelo e tempo de resposta | `interactions` | a cada resposta |
+| Nota de 1 a 5 e comentário de uma resposta | `answer_evaluations` | ao clicar nas estrelas e enviar (avaliar de novo substitui) |
+| Questionário de avaliação do sistema | `survey_responses` | ao enviar o questionário (reenviar substitui) |
+
+**Questionário de avaliação.** O botão **"★ Avaliar o sistema"** abre uma tela com afirmações avaliadas de 1 a 5 estrelas, numa escala de concordância (1 = discordo totalmente, 5 = concordo totalmente), e um comentário final. As afirmações cobrem os critérios da pesquisa: relevância, precisão, clareza, confiança nas fontes, memória de pergunta, tempo de resposta, facilidade de uso e utilidade. Elas ficam em [data/evaluation/questionario.json](data/evaluation/questionario.json): para mudar o texto, acrescentar ou retirar afirmações, edite o arquivo (sem reiniciar o servidor) e aumente a `versao`, que é gravada com cada resposta.
+
+**Dados para a análise.** Como Administrador, a seção **"Coleta da pesquisa"** mostra o total de sessões, perguntas e o tempo médio de resposta; a nota média e a distribuição das estrelas; e a média de cada afirmação do questionário. Os botões **Exportar CSV** baixam três planilhas (separadas por `;`, prontas para o Excel): **Perguntas** (cada pergunta com a resposta e a nota recebida), **Notas** e **Questionário** (uma linha por participante, uma coluna por afirmação). A coluna `sessao` identifica o participante de forma anônima em todas elas.
 
 ## Memória de pergunta
 
@@ -164,7 +186,7 @@ A precisão é avaliada em três frentes complementares:
 
 > **Limitação conhecida:** a fundamentação verifica se cada frase se apoia em *algum* dos trechos recuperados, não necessariamente no artigo certo. Se o modelo misturar dois artigos (ex.: citar o delineamento de um estudo de alface ao responder sobre o milho), a frase ainda conta como fundamentada. Por isso a métrica automática complementa, e não substitui, a nota humana e o benchmark.
 
-**2. Avaliação humana.** O usuário dá uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário. A nota é gravada na tabela `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos. Diferente do log de fontes, essa tabela guarda o texto da pergunta e da resposta, mas **só quando o usuário escolhe avaliar**. O Administrador vê o resumo no menu lateral (nota média, % de respostas precisas com nota ≥ 4, fundamentação média, distribuição das notas e resultados por modelo) e exporta um CSV pronto para o Excel.
+**2. Avaliação humana.** Com o login da turma, o participante dá a cada resposta uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário, e ao final responde o questionário de avaliação do sistema (veja [Testes com usuários](#testes-com-usuários-login-da-turma)). A nota é gravada em `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos. O Administrador vê o resumo no menu lateral (nota média, % de respostas precisas com nota ≥ 4, fundamentação média, distribuição das notas e resultados por modelo) e exporta os dados em CSV.
 
 **3. Benchmark offline** ([backend/evaluate.py](backend/evaluate.py)). Um conjunto de perguntas de referência com os artigos esperados ([data/evaluation/perguntas.json](data/evaluation/perguntas.json)) mede, de forma reprodutível:
 
@@ -187,12 +209,14 @@ Os resultados são impressos e salvos em `data/evaluation/resultados/` com os pa
 
 ## Endpoints da API
 
-As rotas marcadas com 🔒 exigem o cabeçalho `X-Admin-Token` (obtido em `/api/admin/login`).
+O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas marcadas com 🔒 são do Administrador e as marcadas com 👥 exigem o login da turma.
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | `GET` | `/api/health` | Verifica se a API está no ar. |
-| `POST` | `/api/admin/login` | Recebe `{"password": "..."}` e devolve o token de Administrador. |
+| `POST` | `/api/auth/login` | Recebe `{"username", "password"}` (turma ou admin) e devolve `{token, role}`. |
+| `GET` | `/api/auth/me` | Perfil do token atual (`leitor`, `participante` ou `admin`). |
+| `POST` | `/api/auth/logout` | Encerra a sessão do participante. |
 | `GET` | `/api/folders` | Lista os assuntos (pastas) e contagem de artigos. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |
 | `GET` | `/api/articles` | Lista os artigos arquivados no PostgreSQL (metadados). |
@@ -201,10 +225,16 @@ As rotas marcadas com 🔒 exigem o cabeçalho `X-Admin-Token` (obtido em `/api/
 | `DELETE` | `/api/folders/{folder}/documents/{nome}` | 🔒 Remove um artigo do índice. |
 | `DELETE` | `/api/folders/{folder}` | 🔒 Remove um assunto e seus artigos. |
 | `POST` | `/api/ask` | Recebe `{"question", "folder"?, "source"?, "history"?: [{question, answer}]}` e devolve `{answer, sources, scope, evaluation, standalone_question, used_memory, …}`. |
-| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `meta` → `token`… → `done`. |
-| `POST` | `/api/evaluations` | Registra a nota (1 a 5) e o comentário de uma resposta. |
-| `GET` | `/api/evaluations/summary` | 🔒 Indicadores agregados das avaliações. |
-| `GET` | `/api/evaluations/export` | 🔒 Todas as avaliações em CSV (`;`, UTF-8 com BOM). |
+| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `meta` → `token`… → `done`. Com o login da turma, a pergunta é registrada e o `done` traz o `interaction_id`. |
+| `POST` | `/api/evaluations` | 👥 Registra a nota (1 a 5) e o comentário de uma resposta (`interaction_id`). |
+| `GET` | `/api/survey` | 👥 Afirmações do questionário e a resposta já enviada pela sessão. |
+| `POST` | `/api/survey` | 👥 Envia (ou substitui) o questionário: `{"answers": {id: nota}, "comment"}`. |
+| `GET` | `/api/evaluations/summary` | 🔒 Indicadores agregados das notas. |
+| `GET` | `/api/survey/summary` | 🔒 Média e distribuição de cada afirmação do questionário. |
+| `GET` | `/api/interactions/summary` | 🔒 Totais da coleta (sessões, perguntas, tempo médio). |
+| `GET` | `/api/interactions/export` | 🔒 Perguntas coletadas em CSV (`;`, UTF-8 com BOM). |
+| `GET` | `/api/evaluations/export` | 🔒 Notas das respostas em CSV. |
+| `GET` | `/api/survey/export` | 🔒 Questionários em CSV (uma coluna por afirmação). |
 
 A documentação interativa fica em <http://127.0.0.1:8000/docs>.
 
@@ -216,11 +246,12 @@ tcc-alcides-murilo-1/
 │   ├── main.py              # monta o app FastAPI (middlewares, rotas, front-end)
 │   ├── config.py            # parâmetros, caminhos e variáveis de ambiente
 │   ├── database.py          # engine/sessão SQLAlchemy + init_db()
-│   ├── models.py            # Article, QuestionSource, AnswerEvaluation
+│   ├── models.py            # artigos, sessões, perguntas, notas, questionário
 │   ├── schemas.py           # modelos Pydantic de entrada/saída
-│   ├── dependencies.py      # get_rag() e require_admin
-│   ├── persistence.py       # log de fontes (best-effort)
-│   ├── routers/             # admin, library (acervo), chat, evaluation
+│   ├── dependencies.py      # get_rag() e perfis (leitor / participante / admin)
+│   ├── persistence.py       # log de fontes e registro das perguntas coletadas
+│   ├── csv_export.py        # exportação CSV para o Excel
+│   ├── routers/             # auth, library, chat, evaluation, survey, interactions
 │   ├── rag/
 │   │   ├── service.py       # RAGService: prepare → gerar → avaliar
 │   │   ├── retrieval.py     # busca híbrida + referências
@@ -237,14 +268,14 @@ tcc-alcides-murilo-1/
 ├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── js/                  # módulos ES (api, chat, memory, feedback, evaluation…)
+│   └── js/                  # módulos ES (api, auth, chat, memory, feedback, survey, evaluation…)
 ├── database/
 │   └── schema.sql           # esquema SQL (opcional; tabelas criadas pelo app)
 ├── data/
 │   ├── documents/           # PDFs/MDs/TXTs enviados
-│   ├── evaluation/          # perguntas de referência (+ resultados/ gerados)
+│   ├── evaluation/          # questionário, perguntas do benchmark (+ resultados/ gerados)
 │   └── vectorstore/         # Índice Chroma persistente
-├── .env.example             # modelo de configuração (banco, senha, modelos)
+├── .env.example             # modelo de configuração (banco, logins, modelos)
 ├── start.ps1
 ├── .gitignore
 └── README.md
@@ -252,7 +283,12 @@ tcc-alcides-murilo-1/
 
 ## Solução de problemas
 
-- **"Connection refused" ao perguntar**: o Ollama não está rodando. Execute `ollama serve` em outro terminal.
+- **"Connection refused" ou "Failed to connect to Ollama" ao perguntar**: o Ollama não está rodando. Rode o `start.ps1` (ele inicia o Ollama) ou execute `ollama serve` em outro terminal.
+- **"cudaMalloc failed: out of memory" ao perguntar**: falta memória na **placa de vídeo** (VRAM), não na RAM. A GTX 1050 Ti tem 4 GB, divididos com os programas que usam aceleração de vídeo (navegador, Discord, Spotify…). O `start.ps1` já inicia o Ollama com uma folga de 1 GB, e o que não couber vai para a RAM: neste PC, ~12 a 25 s por resposta. Se o Ollama já estava aberto (ícone na bandeja), feche-o e rode o `start.ps1` de novo. Para iniciar manualmente com a folga:
+  ```powershell
+  $env:OLLAMA_GPU_OVERHEAD = "1073741824"; ollama serve
+  ```
+  Rodar só na RAM (`$env:CUDA_VISIBLE_DEVICES = "-1"` antes do `ollama serve`) também funciona, mas ficou bem mais lento: ~53 a 67 s por resposta.
 - **"model 'llama3.2:1b' not found"**: rode `ollama pull llama3.2:1b` (e `ollama pull nomic-embed-text`), ou o modelo definido em `LLM_MODEL`.
 - **Indexação muito lenta**: a primeira execução baixa modelos e processa todo o PDF. Reduza `CHUNK_SIZE` em `backend/config.py` apenas se for necessário.
 - **Resposta diz que "não há informação suficiente"**: o trecho não foi recuperado. Tente reformular a pergunta ou aumentar `RETRIEVAL_K` em `backend/config.py`.

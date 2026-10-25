@@ -21,43 +21,77 @@ async function request(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Perfil Administrador
+// Login: Participante (login da turma) e Administrador
 //
-// O token de sessão fica no sessionStorage (vale enquanto a aba estiver
-// aberta). As rotas de gestão recebem o cabeçalho `X-Admin-Token`.
+// O token e o perfil ficam no sessionStorage (valem enquanto a aba estiver
+// aberta) e o token vai no cabeçalho `X-Auth-Token` de todas as chamadas.
 // ---------------------------------------------------------------------------
 
-const ADMIN_TOKEN_KEY = "tcc_admin_token";
+const AUTH_KEY = "tcc_auth";
 
-export function getAdminToken() {
-    return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+function getAuth() {
+    try {
+        return JSON.parse(sessionStorage.getItem(AUTH_KEY)) || {};
+    } catch {
+        return {};
+    }
 }
 
-export function setAdminToken(token) {
-    if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-    else sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+function setAuth(auth) {
+    if (auth?.token) sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    else sessionStorage.removeItem(AUTH_KEY);
+}
+
+/** "leitor" (sem login), "participante" ou "admin". */
+export function getRole() {
+    return getAuth().role || "leitor";
 }
 
 export function isAdmin() {
-    return Boolean(getAdminToken());
+    return getRole() === "admin";
 }
 
-function adminHeaders(extra = {}) {
-    return { ...extra, "X-Admin-Token": getAdminToken() };
+export function isParticipant() {
+    return getRole() === "participante";
 }
 
-export async function adminLogin(password) {
-    const data = await request("/api/admin/login", {
+function authHeaders(extra = {}) {
+    const { token } = getAuth();
+    return token ? { ...extra, "X-Auth-Token": token } : { ...extra };
+}
+
+export async function login(username, password) {
+    const data = await request("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
     });
-    setAdminToken(data.token);
+    setAuth({ token: data.token, role: data.role });
     return data;
 }
 
-export function adminLogout() {
-    setAdminToken("");
+export async function logout() {
+    try {
+        await request("/api/auth/logout", { method: "POST", headers: authHeaders() });
+    } catch {
+        /* sair localmente mesmo se o servidor não responder */
+    }
+    setAuth(null);
+}
+
+/**
+ * Confere com o servidor se o login salvo ainda vale (o token do admin muda a
+ * cada reinício do servidor). Se não valer, volta ao perfil Leitor.
+ */
+export async function refreshRole() {
+    if (!getAuth().token) return "leitor";
+    try {
+        const { role } = await request("/api/auth/me", { headers: authHeaders() });
+        if (role === "leitor") setAuth(null);
+        return role;
+    } catch {
+        return getRole(); // servidor fora do ar: mantém o que havia
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +118,7 @@ export async function getArticleContent(folder, source) {
 export async function createFolder(name) {
     return request("/api/folders", {
         method: "POST",
-        headers: adminHeaders({ "Content-Type": "application/json" }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name }),
     });
 }
@@ -92,7 +126,7 @@ export async function createFolder(name) {
 export async function deleteFolder(folder) {
     return request(`/api/folders/${encodeURIComponent(folder)}`, {
         method: "DELETE",
-        headers: adminHeaders(),
+        headers: authHeaders(),
     });
 }
 
@@ -100,7 +134,7 @@ export async function deleteDocument(folder, source) {
     const path =
         `/api/folders/${encodeURIComponent(folder)}` +
         `/documents/${encodeURIComponent(source)}`;
-    return request(path, { method: "DELETE", headers: adminHeaders() });
+    return request(path, { method: "DELETE", headers: authHeaders() });
 }
 
 export async function uploadFile(folder, file) {
@@ -109,7 +143,7 @@ export async function uploadFile(folder, file) {
     fd.append("folder", folder);
     return request("/api/upload", {
         method: "POST",
-        headers: adminHeaders(),
+        headers: authHeaders(),
         body: fd,
     });
 }
@@ -121,7 +155,7 @@ export async function uploadFile(folder, file) {
 export async function ask(question, folder, source, history = []) {
     return request("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ question, folder, source, history }),
     });
 }
@@ -130,13 +164,14 @@ export async function ask(question, folder, source, history = []) {
  * Versão em streaming de `ask`. Lê uma resposta NDJSON e chama os callbacks:
  *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
  *   onToken(text)    — a cada pedaço de texto gerado
- *   onDone(result)   — ao final: { sources, scope, evaluation, model, ... }
+ *   onDone(result)   — ao final: { sources, scope, evaluation, model,
+ *                      interaction_id, collected, ... }
  *   onError(error)   — em caso de erro durante a geração
  */
 export async function askStream(question, folder, source, history, { onMeta, onToken, onDone, onError }) {
     const res = await fetch("/api/ask/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ question, folder, source, history }),
     });
 
@@ -182,24 +217,44 @@ export async function askStream(question, folder, source, history, { onMeta, onT
 }
 
 // ---------------------------------------------------------------------------
-// Avaliação da precisão das respostas
+// Avaliação: notas das respostas, questionário e dados coletados
 // ---------------------------------------------------------------------------
 
-export async function sendEvaluation(payload) {
-    return request("/api/evaluations", {
+function postJson(path, payload) {
+    return request(path, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
     });
 }
 
-export async function getEvaluationSummary() {
-    return request("/api/evaluations/summary", { headers: adminHeaders() });
+export function sendEvaluation(payload) {
+    return postJson("/api/evaluations", payload);
 }
 
-/** Baixa o CSV de avaliações (precisa do cabeçalho de admin, por isso via fetch). */
-export async function downloadEvaluationsCsv() {
-    const res = await fetch("/api/evaluations/export", { headers: adminHeaders() });
+export function getSurvey() {
+    return request("/api/survey", { headers: authHeaders() });
+}
+
+export function sendSurvey(answers, comment) {
+    return postJson("/api/survey", { answers, comment });
+}
+
+export function getEvaluationSummary() {
+    return request("/api/evaluations/summary", { headers: authHeaders() });
+}
+
+export function getSurveySummary() {
+    return request("/api/survey/summary", { headers: authHeaders() });
+}
+
+export function getCollectionSummary() {
+    return request("/api/interactions/summary", { headers: authHeaders() });
+}
+
+/** Baixa um CSV exclusivo do admin (precisa do cabeçalho, por isso via fetch). */
+export async function downloadCsv(path, filename) {
+    const res = await fetch(path, { headers: authHeaders() });
     if (!res.ok) {
         let detail = `Erro HTTP ${res.status}`;
         try {
@@ -212,7 +267,7 @@ export async function downloadEvaluationsCsv() {
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement("a");
     a.href = url;
-    a.download = "avaliacoes-respostas.csv";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
 }

@@ -5,9 +5,9 @@ Este módulo apenas monta a aplicação: middlewares, inicialização do banco,
 rotas (em `routers/`) e o front-end estático. A lógica de recuperação, geração,
 memória e avaliação fica no pacote `rag/`.
 
-Perfis de acesso: Leitor (consulta, padrão) e Administrador (envio e gestão de
-artigos, protegido por senha). O cadastro de múltiplos usuários no banco fica
-para uma próxima etapa.
+Perfis de acesso: Leitor (consulta, padrão), Participante (login da turma:
+consulta + coleta de perguntas e avaliações para a pesquisa) e Administrador
+(envio e gestão de artigos e acesso aos dados coletados).
 """
 
 from contextlib import asynccontextmanager
@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from config import BASE_DIR, DOCUMENTS_DIR, LLM_MODEL
 from database import init_db
 from dependencies import get_rag
-from routers import admin, chat, evaluation, library
+from routers import auth, chat, evaluation, interactions, library, survey
 
 
 @asynccontextmanager
@@ -68,10 +68,12 @@ def health():
     return {"status": "ok", "documents_dir": str(DOCUMENTS_DIR), "llm_model": LLM_MODEL}
 
 
-app.include_router(admin.router)
+app.include_router(auth.router)
 app.include_router(library.router)
 app.include_router(chat.router)
 app.include_router(evaluation.router)
+app.include_router(survey.router)
+app.include_router(interactions.router)
 
 
 # ---------------------------------------------------------------------------

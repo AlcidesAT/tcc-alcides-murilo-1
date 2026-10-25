@@ -59,16 +59,30 @@
                     <div id="upload-status" class="status"></div>
                 </section>
 
-                <!-- Avaliação da precisão das respostas (exclusivo do Administrador) -->
+                <!-- Dados coletados com o login da turma (exclusivo do Administrador) -->
                 <section class="side-section admin-only">
                     <div class="side-section-head">
-                        <span>Avaliação das respostas</span>
+                        <span>Coleta da pesquisa</span>
                         <button id="eval-refresh" class="icon-btn" title="Atualizar">↻</button>
                     </div>
+                    <div id="collection-summary" class="eval-summary"></div>
+
+                    <div class="eval-subhead">Notas das respostas</div>
                     <div id="eval-summary" class="eval-summary">
                         <p class="empty">Nenhuma avaliação ainda.</p>
                     </div>
-                    <button id="eval-export" class="primary" disabled>Exportar CSV</button>
+
+                    <div class="eval-subhead">Questionário</div>
+                    <div id="survey-summary" class="eval-summary">
+                        <p class="empty">Nenhum questionário respondido ainda.</p>
+                    </div>
+
+                    <div class="eval-exports">
+                        <span>Exportar CSV:</span>
+                        <button class="mini-btn export-btn" data-path="/api/interactions/export" data-file="perguntas-coletadas.csv">Perguntas</button>
+                        <button class="mini-btn export-btn" data-path="/api/evaluations/export" data-file="avaliacoes-respostas.csv">Notas</button>
+                        <button class="mini-btn export-btn" data-path="/api/survey/export" data-file="questionario-avaliacao.csv">Questionário</button>
+                    </div>
                 </section>
             </div>
 
@@ -78,7 +92,7 @@
                         <span class="profile-dot"></span>
                         <span id="profile-role">Leitor</span>
                     </span>
-                    <button class="profile-btn" id="profile-btn">Entrar como admin</button>
+                    <button class="profile-btn" id="profile-btn">Entrar</button>
                 </div>
                 <div class="brand-foot">
                     <span class="brand-mark">◆</span>
@@ -106,6 +120,10 @@
                             <option value="">Todos os artigos</option>
                         </select>
                     </div>
+                </div>
+                <div class="topbar-actions participant-only">
+                    <span class="collect-pill" data-tip="Com o login da turma, suas perguntas, respostas e avaliações são registradas de forma anônima para a pesquisa do TCC.">● Registrando para a pesquisa</span>
+                    <button class="survey-open" id="survey-open">★ Avaliar o sistema</button>
                 </div>
             </header>
 
@@ -166,25 +184,56 @@
         </main>
     </div>
 
-    <!-- ===================== Modal de login (Administrador) ===================== -->
+    <!-- ============== Modal de login (login da turma ou Administrador) ============== -->
     <div class="modal-overlay" id="login-modal" hidden>
         <div class="modal">
-            <h3>Entrar como Administrador</h3>
+            <h3>Entrar</h3>
             <p class="modal-desc">
-                Informe a senha de administrador para enviar, organizar e indexar artigos.
+                Use o login da turma para participar dos testes, ou o de administrador
+                para gerenciar os artigos.
             </p>
             <input
+                type="text"
+                id="login-username"
+                placeholder="Usuário"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+            />
+            <input
                 type="password"
-                id="admin-password"
-                placeholder="Senha de administrador"
+                id="login-password"
+                placeholder="Senha"
                 autocomplete="current-password"
             />
+            <p class="modal-note">
+                Com o login da turma, suas perguntas, as respostas e as avaliações são
+                registradas de forma anônima para a pesquisa do TCC.
+            </p>
             <div class="modal-error" id="login-error"></div>
             <div class="modal-actions">
                 <button class="btn-ghost" id="login-cancel">Cancelar</button>
                 <button class="btn-solid" id="login-submit">Entrar</button>
             </div>
         </div>
+    </div>
+
+    <!-- ============ Questionário de avaliação do sistema (participante) ============ -->
+    <div class="modal-overlay" id="survey-modal" hidden>
+        <form class="survey" id="survey-form" novalidate>
+            <div class="survey-head">
+                <h3 id="survey-title">Avaliação do sistema</h3>
+                <button type="button" class="reader-close" id="survey-close" title="Fechar" aria-label="Fechar">✕</button>
+            </div>
+            <div class="survey-body" id="survey-body">
+                <p class="reader-msg">Carregando…</p>
+            </div>
+            <div class="survey-foot">
+                <span class="survey-status" id="survey-status"></span>
+                <button type="button" class="btn-ghost" id="survey-cancel">Fechar</button>
+                <button type="submit" class="btn-solid" id="survey-submit">Enviar avaliação</button>
+            </div>
+        </form>
     </div>
 
     <!-- ===================== Leitor de artigos (.md / .txt) ===================== -->

@@ -340,18 +340,24 @@ function createBotMessage(question) {
             footer.className = "msg-footer";
             const badge = buildQualityBadge(result.evaluation);
             if (badge) footer.appendChild(badge);
-            footer.appendChild(
-                buildFeedback({
-                    question,
-                    standalone_question: result.standalone_question ?? meta.standalone_question,
-                    answer: rawText,
-                    scope,
-                    sources,
-                    used_memory: result.used_memory ?? meta.used_memory,
-                    evaluation: result.evaluation,
-                    model: result.model,
-                }),
-            );
+            if (result.collected) {
+                const note = document.createElement("span");
+                note.className = "collected-note";
+                note.textContent = "Registrada para a pesquisa";
+                footer.appendChild(note);
+            }
+            const feedback = buildFeedback({
+                interaction_id: result.interaction_id,
+                question,
+                standalone_question: result.standalone_question ?? meta.standalone_question,
+                answer: rawText,
+                scope,
+                sources,
+                used_memory: result.used_memory ?? meta.used_memory,
+                evaluation: result.evaluation,
+                model: result.model,
+            });
+            if (feedback) footer.appendChild(feedback);
             content.appendChild(footer);
 
             setReferences(sources);

@@ -102,11 +102,22 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/tcc_rag",
 )
 
-# Perfis de acesso. O sistema prevê dois perfis: Leitor (apenas consulta) e
-# Administrador (envio, organização e indexação de artigos). O perfil Leitor é
-# o padrão; para virar Administrador, o usuário informa esta senha, validada
-# no backend. Defina ADMIN_PASSWORD no .env em produção.
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+# Perfis de acesso:
+#  - Leitor (padrão, sem login): apenas consulta; nada é registrado.
+#  - Participante (login da turma): consulta + avaliação. Usado por todos nos
+#    testes com usuários; cada login abre uma sessão anônima e as perguntas,
+#    respostas, notas e o questionário vão para o banco de registro.
+#  - Administrador: envio/gestão de artigos e acesso aos dados coletados.
+# As senhas ficam SÓ no .env (fora do Git). Não há senha padrão no código:
+# sem ADMIN_PASSWORD / PARTICIPANT_PASSWORD definida, aquele login fica
+# desativado em vez de aceitar uma senha conhecida.
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+PARTICIPANT_USER = os.getenv("PARTICIPANT_USER", "turma")
+PARTICIPANT_PASSWORD = os.getenv("PARTICIPANT_PASSWORD", "")
+
+# Questionário de avaliação do sistema (afirmações de 1 a 5 estrelas).
+SURVEY_FILE = EVALUATION_DIR / "questionario.json"
 
 
 def slugify_folder(name: str | None) -> str:

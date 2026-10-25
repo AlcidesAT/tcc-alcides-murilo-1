@@ -1,23 +1,21 @@
 """
 Avaliação da precisão das respostas.
 
-  - POST /api/evaluations          qualquer perfil registra a nota (1 a 5) de uma resposta
+  - POST /api/evaluations          participante (login da turma) dá nota de 1 a 5 a uma resposta
   - GET  /api/evaluations/summary  🔒 indicadores agregados (nota média, fundamentação…)
-  - GET  /api/evaluations/export   🔒 todas as avaliações em CSV (para análise no TCC)
+  - GET  /api/evaluations/export   🔒 todas as notas em CSV (para análise no TCC)
 """
 
-import csv
-import io
 from collections import Counter, defaultdict
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from csv_export import csv_response, num, short_id, when
 from database import get_db
-from dependencies import require_admin
-from models import AnswerEvaluation
+from dependencies import Principal, require_admin, require_participant
+from models import AnswerEvaluation, Interaction
 from schemas import EvaluationRequest
 
 router = APIRouter(prefix="/api/evaluations", tags=["avaliação"])
@@ -36,32 +34,65 @@ def _avg(values) -> Optional[float]:
 
 
 @router.post("", status_code=201)
-def create_evaluation(payload: EvaluationRequest, db: Session = Depends(get_db)):
-    sources = [
-        {
-            "folder": s.get("folder"),
-            "source": s.get("source"),
-            "location": s.get("location"),
-        }
-        for s in payload.sources
-        if isinstance(s, dict)
-    ]
-    record = AnswerEvaluation(
-        question=payload.question.strip(),
-        standalone_question=(payload.standalone_question or "").strip() or None,
-        answer=payload.answer.strip(),
-        scope=payload.scope,
-        sources=sources,
-        used_memory=payload.used_memory,
-        rating=payload.rating,
-        comment=(payload.comment or "").strip() or None,
-        groundedness=payload.metrics.groundedness,
-        question_coverage=payload.metrics.question_coverage,
-        level=payload.metrics.level,
-        llm_model=payload.model,
-    )
+def create_evaluation(
+    payload: EvaluationRequest,
+    principal: Principal = Depends(require_participant),
+    db: Session = Depends(get_db),
+):
     try:
-        db.add(record)
+        interaction = None
+        if payload.interaction_id:
+            interaction = (
+                db.query(Interaction)
+                .filter(
+                    Interaction.id == payload.interaction_id,
+                    Interaction.session_id == principal.session_id,
+                )
+                .first()
+            )
+
+        # Uma nota por pergunta registrada: avaliar de novo substitui a anterior.
+        record = None
+        if interaction:
+            record = (
+                db.query(AnswerEvaluation)
+                .filter(AnswerEvaluation.interaction_id == interaction.id)
+                .first()
+            )
+        if record is None:
+            record = AnswerEvaluation(session_id=principal.session_id)
+            db.add(record)
+
+        if interaction:
+            record.interaction_id = interaction.id
+            record.question = interaction.question
+            record.standalone_question = interaction.standalone_question
+            record.answer = interaction.answer
+            record.scope = interaction.scope
+            record.sources = interaction.sources
+            record.used_memory = (interaction.memory_mode or "none") != "none"
+            record.groundedness = interaction.groundedness
+            record.question_coverage = interaction.question_coverage
+            record.level = interaction.level
+            record.llm_model = interaction.llm_model
+        else:
+            record.question = payload.question.strip()
+            record.standalone_question = (payload.standalone_question or "").strip() or None
+            record.answer = payload.answer.strip()
+            record.scope = payload.scope
+            record.sources = [
+                {"folder": s.get("folder"), "source": s.get("source"), "location": s.get("location")}
+                for s in payload.sources
+                if isinstance(s, dict)
+            ]
+            record.used_memory = payload.used_memory
+            record.groundedness = payload.metrics.groundedness
+            record.question_coverage = payload.metrics.question_coverage
+            record.level = payload.metrics.level
+            record.llm_model = payload.model
+
+        record.rating = payload.rating
+        record.comment = (payload.comment or "").strip() or None
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -119,42 +150,33 @@ def evaluation_summary(db: Session = Depends(get_db)):
 
 @router.get("/export", dependencies=[Depends(require_admin)])
 def export_evaluations(db: Session = Depends(get_db)):
-    """CSV separado por ';' com BOM UTF-8 (abre direto no Excel em pt-BR)."""
     try:
         rows = db.query(AnswerEvaluation).order_by(AnswerEvaluation.created_at).all()
     except Exception as exc:
         raise _db_unavailable(exc) from exc
 
-    buf = io.StringIO()
-    writer = csv.writer(buf, delimiter=";")
-    writer.writerow(
+    header = [
+        "data_utc", "sessao", "modelo", "nota", "comentario", "pergunta", "pergunta_reescrita",
+        "usou_memoria", "escopo", "fundamentacao", "cobertura_pergunta", "nivel",
+        "artigos", "resposta",
+    ]
+    data = (
         [
-            "data_utc", "modelo", "nota", "comentario", "pergunta", "pergunta_reescrita",
-            "usou_memoria", "escopo", "fundamentacao", "cobertura_pergunta", "nivel",
-            "artigos", "resposta",
+            when(r.created_at),
+            short_id(r.session_id),
+            r.llm_model or "",
+            r.rating,
+            r.comment or "",
+            r.question,
+            r.standalone_question or "",
+            "sim" if r.used_memory else "nao",
+            r.scope or "",
+            num(r.groundedness),
+            num(r.question_coverage),
+            r.level or "",
+            " | ".join(s.get("source", "") for s in (r.sources or [])),
+            r.answer,
         ]
+        for r in rows
     )
-    for r in rows:
-        writer.writerow(
-            [
-                r.created_at.isoformat(sep=" ", timespec="seconds") if r.created_at else "",
-                r.llm_model or "",
-                r.rating,
-                r.comment or "",
-                r.question,
-                r.standalone_question or "",
-                "sim" if r.used_memory else "nao",
-                r.scope or "",
-                "" if r.groundedness is None else f"{r.groundedness:.3f}".replace(".", ","),
-                "" if r.question_coverage is None else f"{r.question_coverage:.3f}".replace(".", ","),
-                r.level or "",
-                " | ".join(s.get("source", "") for s in (r.sources or [])),
-                r.answer,
-            ]
-        )
-
-    return Response(
-        content="﻿" + buf.getvalue(),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="avaliacoes-respostas.csv"'},
-    )
+    return csv_response(header, data, "avaliacoes-respostas.csv")

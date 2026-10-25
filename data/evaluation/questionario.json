@@ -1,0 +1,55 @@
+{
+  "versao": "1",
+  "titulo": "Avaliação do sistema",
+  "introducao": "Depois de fazer suas perguntas, avalie o sistema. Para cada afirmação, dê de 1 a 5 estrelas conforme o quanto você concorda. As respostas são anônimas e servem para a pesquisa do TCC.",
+  "escala": {
+    "1": "Discordo totalmente",
+    "2": "Discordo",
+    "3": "Nem concordo nem discordo",
+    "4": "Concordo",
+    "5": "Concordo totalmente"
+  },
+  "afirmacoes": [
+    {
+      "id": "relevancia",
+      "criterio": "Relevância",
+      "texto": "As respostas estavam relacionadas ao que eu perguntei."
+    },
+    {
+      "id": "precisao",
+      "criterio": "Precisão",
+      "texto": "As informações das respostas estavam corretas de acordo com os artigos."
+    },
+    {
+      "id": "clareza",
+      "criterio": "Clareza",
+      "texto": "As respostas foram claras e fáceis de entender."
+    },
+    {
+      "id": "fontes",
+      "criterio": "Confiança nas fontes",
+      "texto": "As referências exibidas me ajudaram a confiar nas respostas."
+    },
+    {
+      "id": "memoria",
+      "criterio": "Memória de pergunta",
+      "texto": "O sistema entendeu minhas perguntas de continuação (por exemplo: \"e qual foi a metodologia?\")."
+    },
+    {
+      "id": "tempo",
+      "criterio": "Tempo de resposta",
+      "texto": "O tempo para receber as respostas foi adequado."
+    },
+    {
+      "id": "usabilidade",
+      "criterio": "Facilidade de uso",
+      "texto": "A interface foi fácil de usar."
+    },
+    {
+      "id": "utilidade",
+      "criterio": "Utilidade",
+      "texto": "Eu usaria este sistema para consultar artigos científicos."
+    }
+  ],
+  "comentario": "Comentário final: o que funcionou bem e o que poderia melhorar?"
+}
