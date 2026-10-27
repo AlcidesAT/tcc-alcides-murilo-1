@@ -1,7 +1,9 @@
 # Sistema completo em containers: aplicação + PostgreSQL + Ollama.
 #
-#   docker compose up -d --build                      sobe tudo (1ª vez baixa os modelos)
-#   docker compose exec app python seed_articles.py   indexa os artigos de data/documents
+#   docker compose up -d --build                         sobe tudo (1ª vez baixa os modelos)
+#   docker compose stop app                              indexa os artigos de data/documents
+#   docker compose run --rm app python seed_articles.py  com a aplicação parada (o Chroma
+#   docker compose start app                             não aceita dois processos juntos)
 #
 # As variáveis vêm do arquivo .env (copie de .env.example). Com placa NVIDIA no
 # servidor, some o docker-compose.gpu.yml (veja o README).

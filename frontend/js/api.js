@@ -15,7 +15,9 @@ async function request(path, options = {}) {
         data = {};
     }
     if (!res.ok) {
-        throw new Error(data.detail || `Erro HTTP ${res.status}`);
+        const err = new Error(data.detail || `Erro HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
     }
     return data;
 }

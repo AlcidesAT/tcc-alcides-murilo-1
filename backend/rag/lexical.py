@@ -100,6 +100,14 @@ class LexicalIndex:
         self._avgdl: float = 0.0
         self._count: int = -1
 
+    def invalidate(self) -> None:
+        """Força a reconstrução na próxima consulta.
+
+        A contagem de trechos não muda quando um artigo é substituído por outro
+        do mesmo tamanho; por isso o próprio processo avisa após cada alteração.
+        """
+        self._count = -1
+
     def refresh(self) -> None:
         count = self._vectorstore._collection.count()
         if self._count == count:

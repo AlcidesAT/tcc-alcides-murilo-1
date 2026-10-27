@@ -144,6 +144,7 @@ function renderSelected() {
         const status = document.createElement("span");
         status.className = "fstatus";
         status.textContent = entry.statusText || "aguardando";
+        if (entry.error) status.title = entry.error;
         li.append(name, status);
         selectedList.appendChild(li);
     });
@@ -153,6 +154,7 @@ function renderSelected() {
 async function uploadOne(folder, entry) {
     entry.status = "";
     entry.statusText = "enviando…";
+    entry.error = "";
     renderSelected();
     try {
         const data = await api.uploadFile(folder, entry.file);
@@ -161,7 +163,8 @@ async function uploadOne(folder, entry) {
         return { ok: true };
     } catch (err) {
         entry.status = "error";
-        entry.statusText = "erro";
+        entry.statusText = err.status === 409 ? "já existe" : "erro";
+        entry.error = err.message;
         return { ok: false, error: err.message };
     } finally {
         renderSelected();

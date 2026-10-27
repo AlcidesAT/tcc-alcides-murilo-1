@@ -7,7 +7,12 @@ exemplo `data/documents/ciencias-exatas-e-tecnologicas/` — e rodar este script
 Ele indexa, NO PRÓPRIO LUGAR, todos os arquivos que ainda não foram indexados,
 e arquiva os metadados na tabela `articles` do PostgreSQL.
 
-Reexecuções são seguras: arquivos já presentes no índice são ignorados.
+Reexecuções são seguras: arquivos já presentes no índice são ignorados,
+inclusive os enviados pelo site (gravados como "1a2b3c4d_Nome.pdf", mas
+indexados como "Nome.pdf").
+
+Pare a aplicação antes de rodar o script: o Chroma não pode ser usado por dois
+processos ao mesmo tempo (veja o README).
 
 Pré-requisitos:
   - Ollama em execução (`ollama serve`) com `llama3.2` e `nomic-embed-text`.
@@ -17,7 +22,7 @@ Uso (a partir da pasta `backend`):
     python seed_articles.py
 """
 
-from config import DOCUMENTS_DIR, SUPPORTED_EXTENSIONS, slugify_folder
+from config import DOCUMENTS_DIR, SUPPORTED_EXTENSIONS, original_filename, slugify_folder
 from rag import RAGService
 
 
@@ -54,8 +59,15 @@ def main() -> None:
         if not files:
             continue
 
-        already_indexed = {d["source"] for d in rag.list_documents(area)}
-        pending = [f for f in files if f.name not in already_indexed]
+        # O nome no índice é o original, sem o prefixo do upload. Um mesmo
+        # artigo com dois arquivos na pasta é indexado uma vez só.
+        known = {d["source"] for d in rag.list_documents(area)}
+        pending = []
+        for f in files:
+            name = original_filename(f.name)
+            if name not in known:
+                known.add(name)
+                pending.append((f, name))
 
         print(
             f"\n== {area}: {len(files)} arquivo(s) na pasta, "
@@ -65,29 +77,29 @@ def main() -> None:
             print("  (tudo já indexado)")
             continue
 
-        for f in pending:
+        for f, name in pending:
             try:
-                chunks = rag.index_document(f, source_name=f.name, folder=area)
+                chunks = rag.index_document(f, source_name=name, folder=area)
             except Exception as exc:
-                print(f"  [ERRO] {f.name}: falha ao indexar — {exc}")
+                print(f"  [ERRO] {name}: falha ao indexar — {exc}")
                 continue
 
             total_files += 1
             total_chunks += chunks
-            print(f"  [OK] {f.name} -> {chunks} trecho(s)")
+            print(f"  [OK] {name} -> {chunks} trecho(s)")
 
             if db is not None and Article is not None:
                 try:
                     exists = (
                         db.query(Article)
-                        .filter(Article.folder == area, Article.filename == f.name)
+                        .filter(Article.folder == area, Article.filename == name)
                         .first()
                     )
                     if not exists:
                         db.add(
                             Article(
                                 folder=area,
-                                filename=f.name,
+                                filename=name,
                                 stored_as=f.name,
                                 file_size=f.stat().st_size,
                                 file_type=f.suffix.lower(),

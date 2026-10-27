@@ -123,12 +123,18 @@ class RAGService:
     def index_document(
         self, file_path: Path, source_name: str, folder: str
     ) -> int:
-        """Adiciona um artigo a uma pasta. Retorna a quantidade de chunks."""
+        """Adiciona um artigo a uma pasta. Retorna a quantidade de chunks.
+
+        Se o artigo já estiver indexado, os trechos antigos são substituídos
+        (sem isso, uma versão mais curta deixaria trechos velhos no índice).
+        """
         chunks = load_and_split(file_path, source_name, folder)
         if not chunks:
             return 0
+        self.delete_document(folder, source_name)
         ids = [f"{folder}::{source_name}::chunk-{i}" for i in range(len(chunks))]
         self.vectorstore.add_documents(documents=chunks, ids=ids)
+        self.lexical.invalidate()
         return len(chunks)
 
     def _all_metadatas(self) -> List[dict]:
@@ -178,6 +184,7 @@ class RAGService:
         ids = raw.get("ids", []) or []
         if ids:
             self.vectorstore.delete(ids=ids)
+            self.lexical.invalidate()
         return len(ids)
 
     def delete_folder(self, folder: str) -> int:
@@ -186,6 +193,7 @@ class RAGService:
         ids = raw.get("ids", []) or []
         if ids:
             self.vectorstore.delete(ids=ids)
+            self.lexical.invalidate()
         return len(ids)
 
     # ------------------------------------------------------------------

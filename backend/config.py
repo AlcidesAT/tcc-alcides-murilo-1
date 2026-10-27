@@ -135,3 +135,25 @@ def slugify_folder(name: str | None) -> str:
     s = re.sub(r"-+", "-", s).strip("-")
     s = s[:MAX_FOLDER_NAME_LEN]
     return s or DEFAULT_FOLDER
+
+
+# O upload pelo site grava o arquivo com um prefixo único ("1a2b3c4d_Nome.pdf"),
+# mas o artigo fica no índice com o nome original ("Nome.pdf"). Os artigos
+# colocados direto na pasta (lote) ficam com o nome original nos dois lugares.
+UPLOAD_PREFIX = re.compile(r"^[0-9a-f]{8}_")
+
+
+def original_filename(stored_name: str) -> str:
+    """Nome do artigo no índice a partir do nome do arquivo em disco."""
+    return UPLOAD_PREFIX.sub("", stored_name, count=1)
+
+
+def article_files(folder_dir: Path, source_name: str) -> list[Path]:
+    """Arquivos em disco de um artigo indexado (com ou sem o prefixo do upload)."""
+    if not folder_dir.is_dir():
+        return []
+    return [
+        p
+        for p in sorted(folder_dir.iterdir())
+        if p.is_file() and original_filename(p.name) == source_name
+    ]

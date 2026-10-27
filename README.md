@@ -139,9 +139,11 @@ Tudo roda em containers: a aplicação, o PostgreSQL e o Ollama. No servidor bas
    docker compose up -d --build
    ```
    Na primeira vez, o container `ollama-pull` baixa os modelos (~1,6 GB) e a aplicação só inicia depois disso. Acompanhe com `docker compose logs -f ollama-pull app`.
-3. Indexe os artigos de `data/documents/` (o índice vetorial não fica no Git; reexecutar é seguro):
+3. Indexe os artigos de `data/documents/` (o índice vetorial não fica no Git; reexecutar é seguro). A aplicação fica parada durante a indexação, porque o Chroma não aceita dois processos usando o mesmo índice ao mesmo tempo:
    ```bash
-   docker compose exec app python seed_articles.py
+   docker compose stop app
+   docker compose run --rm app python seed_articles.py
+   docker compose start app
    ```
 4. Acesse `http://<endereço-do-servidor>:8000` (a porta muda com `APP_PORT` no `.env`).
 
@@ -158,6 +160,8 @@ Sem placa, o Ollama roda na CPU: o `llama3.2:1b` funciona, mas as respostas demo
 | Artigos, índice vetorial e questionário | pasta `data/` do projeto (montada no container) |
 | Banco PostgreSQL | volume Docker `tcc-rag_pgdata` |
 | Modelos do Ollama | volume Docker `tcc-rag_ollama` |
+
+Os artigos enviados pelo site ficam só na pasta `data/` do servidor (não vão para o Git): faça cópia dela antes de trocar de servidor ou de apagar o projeto. `docker compose down` (mesmo com `-v`) não apaga essa pasta.
 
 O banco e o Ollama não ficam expostos fora do Docker; só a aplicação abre uma porta. Comandos úteis:
 
@@ -341,7 +345,7 @@ tcc-alcides-murilo-1/
 - **Indexação muito lenta**: a primeira execução baixa modelos e processa todo o PDF. Reduza `CHUNK_SIZE` em `backend/config.py` apenas se for necessário.
 - **Docker: "defina POSTGRES_PASSWORD no .env"**: o `.env` não tem a senha do banco dos containers. Acrescente `POSTGRES_PASSWORD=...` (veja o `.env.example`).
 - **Docker: a aplicação não sobe e o `ollama-pull` terminou com erro**: o servidor não conseguiu baixar os modelos (sem internet ou nome de modelo errado em `LLM_MODEL`). Veja `docker compose logs ollama-pull`, corrija e rode `docker compose up -d` de novo.
-- **Docker: nenhum artigo aparece**: o índice vetorial ainda não foi criado no servidor. Rode `docker compose exec app python seed_articles.py`.
+- **Docker: nenhum artigo aparece**: o índice vetorial ainda não foi criado no servidor. Rode o `seed_articles.py` como no passo 3 da instalação com Docker.
 - **Resposta diz que "não há informação suficiente"**: o trecho não foi recuperado. Tente reformular a pergunta ou aumentar `RETRIEVAL_K` em `backend/config.py`.
 
 ## Próximos passos (alinhados ao cronograma do TCC)

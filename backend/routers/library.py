@@ -16,6 +16,7 @@ from config import (
     DOCUMENTS_DIR,
     MAX_UPLOAD_MB,
     SUPPORTED_EXTENSIONS,
+    article_files,
     slugify_folder,
 )
 from database import get_db
@@ -101,16 +102,11 @@ def article_content(folder: str, source: str):
             detail="Pré-visualização disponível apenas para arquivos .md e .txt.",
         )
 
-    folder_dir = DOCUMENTS_DIR / slugify_folder(folder)
-    path = folder_dir / source
-    if not path.exists():
-        matches = list(folder_dir.glob(f"*_{source}"))
-        path = matches[0] if matches else None
-
-    if not path or not path.exists():
+    files = article_files(DOCUMENTS_DIR / slugify_folder(folder), source)
+    if not files:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
 
-    content = path.read_text(encoding="utf-8", errors="replace")
+    content = files[0].read_text(encoding="utf-8", errors="replace")
     return {"folder": slugify_folder(folder), "source": source, "content": content}
 
 
@@ -121,10 +117,12 @@ async def upload_document(
     db: Session = Depends(get_db),
     rag: RAGService = Depends(get_rag),
 ):
-    if not file.filename:
+    # Só o nome do arquivo, sem pastas que o cliente possa ter enviado junto.
+    filename = Path((file.filename or "").replace("\\", "/")).name
+    if not filename:
         raise HTTPException(status_code=400, detail="Arquivo sem nome.")
 
-    suffix = Path(file.filename).suffix.lower()
+    suffix = Path(filename).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -133,9 +131,17 @@ async def upload_document(
 
     folder_slug = slugify_folder(folder)
     folder_dir = DOCUMENTS_DIR / folder_slug
+
+    # Mesmo nome no mesmo assunto sobrescreveria o artigo no índice e deixaria
+    # dois arquivos em disco: o administrador remove o antigo antes de reenviar.
+    if any(d["source"] == filename for d in rag.list_documents(folder_slug)):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já existe um artigo \"{filename}\" neste assunto. Remova-o antes de enviar de novo.",
+        )
     folder_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = f"{uuid.uuid4().hex[:8]}_{Path(file.filename).name}"
+    safe_name = f"{uuid.uuid4().hex[:8]}_{filename}"
     dest = folder_dir / safe_name
 
     size_bytes = 0
@@ -149,7 +155,7 @@ async def upload_document(
             out.write(chunk)
 
     try:
-        chunks_added = rag.index_document(dest, source_name=file.filename, folder=folder_slug)
+        chunks_added = rag.index_document(dest, source_name=filename, folder=folder_slug)
     except Exception as exc:
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Falha ao indexar o documento: {exc}") from exc
@@ -158,7 +164,7 @@ async def upload_document(
     try:
         article = Article(
             folder=folder_slug,
-            filename=file.filename,
+            filename=filename,
             stored_as=safe_name,
             file_size=size_bytes,
             file_type=suffix,
@@ -174,7 +180,7 @@ async def upload_document(
             pass
 
     return {
-        "filename": file.filename,
+        "filename": filename,
         "folder": folder_slug,
         "stored_as": safe_name,
         "chunks_indexed": chunks_added,
@@ -190,10 +196,10 @@ def delete_document(folder: str, source_name: str, rag: RAGService = Depends(get
     removed = rag.delete_document(folder_slug, source_name)
     if removed == 0:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
-    folder_dir = DOCUMENTS_DIR / folder_slug
-    if folder_dir.exists():
-        for path in folder_dir.glob(f"*_{source_name}"):
-            path.unlink(missing_ok=True)
+    # Apaga também o arquivo em disco (com ou sem o prefixo do upload); se ele
+    # ficasse, o próximo seed_articles.py indexaria o artigo de novo.
+    for path in article_files(DOCUMENTS_DIR / folder_slug, source_name):
+        path.unlink(missing_ok=True)
     return {"folder": folder_slug, "source": source_name, "chunks_removed": removed}
 
 
