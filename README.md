@@ -126,6 +126,50 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 Abra o navegador em **<http://127.0.0.1:8000>**.
 
+### Opção C — Docker (servidor)
+
+Tudo roda em containers: a aplicação, o PostgreSQL e o Ollama. No servidor basta ter o **Docker** com o **Docker Compose**; não é preciso instalar Python, PostgreSQL nem Ollama.
+
+1. Crie o `.env` a partir do modelo e defina as senhas (`ADMIN_PASSWORD`, `PARTICIPANT_PASSWORD` e `POSTGRES_PASSWORD`):
+   ```bash
+   cp .env.example .env
+   ```
+2. Suba os containers:
+   ```bash
+   docker compose up -d --build
+   ```
+   Na primeira vez, o container `ollama-pull` baixa os modelos (~1,6 GB) e a aplicação só inicia depois disso. Acompanhe com `docker compose logs -f ollama-pull app`.
+3. Indexe os artigos de `data/documents/` (o índice vetorial não fica no Git; reexecutar é seguro):
+   ```bash
+   docker compose exec app python seed_articles.py
+   ```
+4. Acesse `http://<endereço-do-servidor>:8000` (a porta muda com `APP_PORT` no `.env`).
+
+**Com placa de vídeo NVIDIA** no servidor (requer o [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)), some o arquivo da GPU:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
+
+Sem placa, o Ollama roda na CPU: o `llama3.2:1b` funciona, mas as respostas demoram mais.
+
+| Dados | Onde ficam |
+| --- | --- |
+| Artigos, índice vetorial e questionário | pasta `data/` do projeto (montada no container) |
+| Banco PostgreSQL | volume Docker `tcc-rag_pgdata` |
+| Modelos do Ollama | volume Docker `tcc-rag_ollama` |
+
+O banco e o Ollama não ficam expostos fora do Docker; só a aplicação abre uma porta. Comandos úteis:
+
+| Para | Comando |
+| --- | --- |
+| Atualizar depois de um `git pull` | `docker compose up -d --build` |
+| Ver os logs da aplicação | `docker compose logs -f app` |
+| Rodar o benchmark de precisão | `docker compose exec app python evaluate.py` |
+| Backup do banco | `docker compose exec -T db pg_dump -U postgres tcc_rag > backup.sql` |
+| Parar tudo (mantém os dados) | `docker compose down` |
+| Parar e **apagar** banco e modelos | `docker compose down -v` |
+
 ## Como usar
 
 1. Garanta que o `ollama serve` esteja rodando em outro terminal.
@@ -275,7 +319,11 @@ tcc-alcides-murilo-1/
 │   ├── documents/           # PDFs/MDs/TXTs enviados
 │   ├── evaluation/          # questionário, perguntas do benchmark (+ resultados/ gerados)
 │   └── vectorstore/         # Índice Chroma persistente
-├── .env.example             # modelo de configuração (banco, logins, modelos)
+├── .env.example             # modelo de configuração (banco, logins, modelos, Docker)
+├── Dockerfile               # imagem da aplicação (API + front-end)
+├── docker-compose.yml       # aplicação + PostgreSQL + Ollama
+├── docker-compose.gpu.yml   # opcional: placa NVIDIA para o Ollama
+├── .dockerignore
 ├── start.ps1
 ├── .gitignore
 └── README.md
@@ -291,6 +339,9 @@ tcc-alcides-murilo-1/
   Rodar só na RAM (`$env:CUDA_VISIBLE_DEVICES = "-1"` antes do `ollama serve`) também funciona, mas ficou bem mais lento: ~53 a 67 s por resposta.
 - **"model 'llama3.2:1b' not found"**: rode `ollama pull llama3.2:1b` (e `ollama pull nomic-embed-text`), ou o modelo definido em `LLM_MODEL`.
 - **Indexação muito lenta**: a primeira execução baixa modelos e processa todo o PDF. Reduza `CHUNK_SIZE` em `backend/config.py` apenas se for necessário.
+- **Docker: "defina POSTGRES_PASSWORD no .env"**: o `.env` não tem a senha do banco dos containers. Acrescente `POSTGRES_PASSWORD=...` (veja o `.env.example`).
+- **Docker: a aplicação não sobe e o `ollama-pull` terminou com erro**: o servidor não conseguiu baixar os modelos (sem internet ou nome de modelo errado em `LLM_MODEL`). Veja `docker compose logs ollama-pull`, corrija e rode `docker compose up -d` de novo.
+- **Docker: nenhum artigo aparece**: o índice vetorial ainda não foi criado no servidor. Rode `docker compose exec app python seed_articles.py`.
 - **Resposta diz que "não há informação suficiente"**: o trecho não foi recuperado. Tente reformular a pergunta ou aumentar `RETRIEVAL_K` em `backend/config.py`.
 
 ## Próximos passos (alinhados ao cronograma do TCC)

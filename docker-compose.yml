@@ -1,0 +1,80 @@
+# Sistema completo em containers: aplicação + PostgreSQL + Ollama.
+#
+#   docker compose up -d --build                      sobe tudo (1ª vez baixa os modelos)
+#   docker compose exec app python seed_articles.py   indexa os artigos de data/documents
+#
+# As variáveis vêm do arquivo .env (copie de .env.example). Com placa NVIDIA no
+# servidor, some o docker-compose.gpu.yml (veja o README).
+
+name: tcc-rag
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-tcc_rag}
+    volumes:
+      # A partir do PostgreSQL 18 a imagem guarda os dados em /var/lib/postgresql.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tcc_rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama  # modelos baixados
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Baixa os modelos que ainda não estão no volume do Ollama e termina. Nas
+  # próximas subidas não baixa nada (nem precisa de internet).
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for m in "$$LLM_MODEL" "$$EMBEDDING_MODEL"; do
+          ollama show "$$m" > /dev/null 2>&1 || ollama pull "$$m" || exit 1
+        done
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Dentro do Docker o banco e o Ollama são acessados pelo nome do serviço.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tcc_rag}
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./data:/app/data  # artigos, índice vetorial e questionário
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+volumes:
+  pgdata:
+  ollama:

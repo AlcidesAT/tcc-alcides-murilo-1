@@ -1,0 +1,23 @@
+# Só backend/ e frontend/ entram na imagem (veja o Dockerfile).
+.git
+.gitignore
+.venv
+venv
+env
+.claude
+.vscode
+.idea
+**/__pycache__
+**/*.py[cod]
+*.log
+
+# Segredos: chegam ao container pelo docker-compose (env_file), nunca na imagem.
+.env
+
+# Montada como volume pelo docker-compose.
+data
+
+start.ps1
+README.md
+Dockerfile
+docker-compose*.yml
