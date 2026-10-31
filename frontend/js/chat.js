@@ -94,6 +94,8 @@ function appendMemoryDivider() {
     scrollToBottom();
 }
 
+const FILE_TYPE_LABELS = { ".pdf": "PDF", ".md": "Markdown", ".txt": "TXT" };
+
 /**
  * Atualiza a trilha de referências (coluna da direita) com um widget por fonte
  * da resposta mais recente. Com `sources` nulo/vazio, mostra a mensagem de
@@ -129,7 +131,9 @@ function setReferences(sources, placeholder = "Esta resposta não citou fontes e
             `<span class="ref-title">${escapeHtml(s.source)}</span>` +
             (readable ? `<span class="ref-open" title="Ler artigo">↗</span>` : "") +
             `</div>` +
-            `<div class="ref-meta">${escapeHtml(s.folder)} · ${escapeHtml(s.location || "trecho")}</div>` +
+            `<div class="ref-meta">${escapeHtml(s.folder)} · ` +
+            (FILE_TYPE_LABELS[s.file_type] ? `${FILE_TYPE_LABELS[s.file_type]} · ` : "") +
+            `${escapeHtml(s.location || "trecho")}</div>` +
             (s.snippet
                 ? `<div class="ref-snippet">${escapeHtml(s.snippet)}</div>`
                 : "");
@@ -330,7 +334,9 @@ function createBotMessage(question) {
                     const chip = document.createElement("span");
                     chip.className = "src-chip";
                     chip.setAttribute("data-tip", s.source);
-                    chip.textContent = s.source;
+                    // O tipo vem antes do nome: nomes longos são cortados no chip.
+                    const type = FILE_TYPE_LABELS[s.file_type];
+                    chip.textContent = type ? `${type} · ${s.source}` : s.source;
                     box.appendChild(chip);
                 });
                 content.appendChild(box);
