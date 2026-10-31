@@ -99,6 +99,7 @@ class LexicalIndex:
         self._idf: Dict[str, float] = {}
         self._avgdl: float = 0.0
         self._count: int = -1
+        self._articles: Dict[tuple, Dict] = {}  # estatísticas por escopo
 
     def invalidate(self) -> None:
         """Força a reconstrução na próxima consulta.
@@ -131,7 +132,13 @@ class LexicalIndex:
             self._chunks = chunks
             self._idf = _idf(df, n)
             self._avgdl = total_len / n
+            self._articles = {}
             self._count = count
+
+    def folders(self) -> set:
+        """Assuntos com trechos indexados."""
+        self.refresh()
+        return {ch["meta"].get("folder") for ch in self._chunks}
 
     def _scoped(self, folder: Optional[str], source: Optional[str]) -> Iterable[Dict]:
         for ch in self._chunks:
@@ -185,6 +192,22 @@ class LexicalIndex:
             return []
         self.refresh()
 
+        stats = self._article_stats(folder, source)
+        scored = []
+        for a in stats["articles"]:
+            s = bm25(a["tf"], a["len"], terms, stats["idf"], stats["avgdl"])
+            if s > 0:
+                scored.append((s, a))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored
+
+    def _article_stats(self, folder: Optional[str], source: Optional[str]) -> Dict:
+        """Totais por artigo de um escopo. Só mudam quando o acervo muda, e
+        somá-los a cada pergunta pesa quando muita gente pergunta junto."""
+        cached = self._articles.get((folder, source))
+        if cached:
+            return cached
+
         arts: Dict[tuple, Dict] = {}
         for ch in self._scoped(folder, source):
             meta = ch["meta"]
@@ -193,20 +216,15 @@ class LexicalIndex:
             a["tf"] += ch["tf"]
             a["len"] += ch["len"]
             a["chunks"].append(ch)
-        if not arts:
-            return []
 
-        n = len(arts)
-        avgdl = sum(a["len"] for a in arts.values()) / n
+        n = len(arts) or 1
         df: Counter = Counter()
         for a in arts.values():
             df.update(a["tf"].keys())
-        idf = _idf(df, n)
-
-        scored = []
-        for a in arts.values():
-            s = bm25(a["tf"], a["len"], terms, idf, avgdl)
-            if s > 0:
-                scored.append((s, a))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return scored
+        stats = {
+            "articles": list(arts.values()),
+            "idf": _idf(df, n),
+            "avgdl": sum(a["len"] for a in arts.values()) / n,
+        }
+        self._articles[(folder, source)] = stats
+        return stats

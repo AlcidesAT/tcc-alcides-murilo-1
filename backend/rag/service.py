@@ -24,6 +24,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 
 from config import (
+    ANSWER_MAX_CHARS,
     COLLECTION_NAME,
     DEFAULT_FOLDER,
     EMBEDDING_MODEL,
@@ -46,6 +47,8 @@ from rag.memory import (
 )
 from rag.prompts import ANSWER_PROMPT, HISTORY_BLOCK
 from rag.retrieval import HybridRetriever, location_label, scope_label
+
+ANSWER_CUT_NOTICE = "\n\n*(Resposta interrompida por ficar longa demais.)*"
 
 
 @dataclass
@@ -74,6 +77,16 @@ class RAGContext:
     def used_memory(self) -> bool:
         """A memória mudou a interpretação da pergunta (acompanhamento)?"""
         return self.resolution.follow_up
+
+    @property
+    def rewrite_pending(self) -> bool:
+        """Falta a reescrita da pergunta, feita pelo LLM (acompanhamento)."""
+        return self.resolution.provisional
+
+    @property
+    def needs_model(self) -> bool:
+        """Ainda há trabalho para o LLM (perguntas sobre o acervo não usam)."""
+        return self.catalog_answer is None or self.rewrite_pending
 
     def meta(self) -> Dict:
         """Informações da memória enviadas à interface."""
@@ -206,14 +219,17 @@ class RAGService:
         folder: Optional[str] = None,
         source: Optional[str] = None,
         history: Optional[Iterable] = None,
+        rewrite: bool = True,
     ) -> RAGContext:
         """Aplica a memória da conversa e recupera trechos e referências.
 
         Separado da geração para que falhas (ex.: Ollama indisponível) virem
-        um status HTTP adequado antes de o streaming começar.
+        um status HTTP adequado antes de o streaming começar. Com
+        `rewrite=False`, a recuperação não usa o LLM e não entra na fila; em
+        perguntas de acompanhamento, repete-se a preparação quando chegar a vez.
         """
         turns = normalize_history(history)
-        resolution = self.condenser.resolve(question, turns)
+        resolution = self.condenser.resolve(question, turns, rewrite)
 
         if not source and is_catalog_question(question):
             answer, sources = answer_catalog(
@@ -273,15 +289,27 @@ class RAGService:
         if ctx.catalog_answer is not None:
             yield ctx.catalog_answer
             return
-        for piece in self.answer_chain.stream(self._prompt_inputs(ctx)):
-            if piece:
+
+        # O modelo às vezes não para de escrever, e essa resposta prenderia a
+        # fila inteira. Fechar o stream interrompe a geração no Ollama.
+        size = 0
+        stream = self.answer_chain.stream(self._prompt_inputs(ctx))
+        try:
+            for piece in stream:
+                if not piece:
+                    continue
                 yield piece
+                size += len(piece)
+                if size >= ANSWER_MAX_CHARS:
+                    print(f"[WARNING] Resposta interrompida em {size} caracteres: {ctx.question[:80]}")
+                    yield ANSWER_CUT_NOTICE
+                    return
+        finally:
+            stream.close()
 
     def generate(self, ctx: RAGContext) -> str:
         """Gera a resposta de uma vez."""
-        if ctx.catalog_answer is not None:
-            return ctx.catalog_answer
-        return self.answer_chain.invoke(self._prompt_inputs(ctx))
+        return "".join(self.stream_answer(ctx))
 
     def evaluate(self, ctx: RAGContext, answer: str) -> Dict:
         """Métricas automáticas de precisão da resposta (ver rag/evaluation.py)."""

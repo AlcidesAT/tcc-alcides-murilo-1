@@ -7,6 +7,7 @@ Pacote do pipeline RAG.
     catalog.py     perguntas sobre o acervo (lista de artigos no prompt)
     prompts.py     prompts de geração e de reescrita
     evaluation.py  avaliação automática da precisão das respostas
+    queue.py       fila de geração das respostas
     service.py     RAGService: fachada usada pela API e pelos scripts
 """
 

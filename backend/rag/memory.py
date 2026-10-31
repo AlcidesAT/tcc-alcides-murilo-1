@@ -46,12 +46,14 @@ class Resolution:
 
     `mode`: "none" (pergunta completa, memória não aplicada), "rewrite"
     (reescrita do LLM aceita) ou "expansion" (reescrita rejeitada; busca com a
-    pergunta anterior + a atual).
+    pergunta anterior + a atual). `provisional` marca a expansão usada antes de
+    o LLM ter sido consultado: a reescrita ainda está por fazer.
     """
 
     standalone: str  # pergunta completa usada na busca/avaliação
     queries: List[str] = field(default_factory=list)  # consultas fundidas na busca
     mode: str = "none"
+    provisional: bool = False
 
     @property
     def follow_up(self) -> bool:
@@ -158,11 +160,17 @@ class QuestionCondenser:
     def __init__(self, llm) -> None:
         self.chain = ChatPromptTemplate.from_template(CONDENSE_PROMPT) | llm | StrOutputParser()
 
-    def resolve(self, question: str, turns: List[Turn]) -> Resolution:
+    def resolve(self, question: str, turns: List[Turn], rewrite: bool = True) -> Resolution:
+        """Com `rewrite=False`, não usa o LLM (para a busca imediata, antes da fila)."""
         if not turns or not is_follow_up(question):
             return Resolution(standalone=question, queries=[question])
 
         expansion = f"{turns[-1].question} {question}"
+        if not rewrite:
+            return Resolution(
+                standalone=expansion, queries=[expansion], mode="expansion", provisional=True
+            )
+
         raw = self.chain.invoke({"history": format_history(turns), "question": question})
         rewrite = _clean(raw)
 

@@ -178,6 +178,8 @@ export async function ask(question, folder, source, history = []) {
 
 /**
  * Versão em streaming de `ask`. Lê uma resposta NDJSON e chama os callbacks:
+ *   onSources(found) — logo após a busca: { sources, scope }
+ *   onQueue(status)  — enquanto espera a vez: { position, eta_seconds }
  *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
  *   onToken(text)    — a cada pedaço de texto gerado
  *   onDone(result)   — ao final: { sources, scope, evaluation, model,
@@ -185,7 +187,13 @@ export async function ask(question, folder, source, history = []) {
  *                      questions_limit, ... }
  *   onError(error)   — em caso de erro durante a geração
  */
-export async function askStream(question, folder, source, history, { onMeta, onToken, onDone, onError }) {
+export async function askStream(
+    question,
+    folder,
+    source,
+    history,
+    { onSources, onQueue, onMeta, onToken, onDone, onError },
+) {
     const res = await fetch("/api/ask/stream", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
@@ -226,6 +234,8 @@ export async function askStream(question, folder, source, history, { onMeta, onT
             }
 
             if (msg.type === "token") onToken?.(msg.text);
+            else if (msg.type === "sources") onSources?.(msg);
+            else if (msg.type === "queue") onQueue?.(msg);
             else if (msg.type === "meta") onMeta?.(msg);
             else if (msg.type === "done") onDone?.(msg);
             else if (msg.type === "error") onError?.(new Error(msg.detail));

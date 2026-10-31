@@ -190,6 +190,8 @@ Para a aplicação com a turma, todos usam o **mesmo login**: o usuário é `tur
 
 **Limite de perguntas.** Cada sessão do login da turma pode fazer até `PARTICIPANT_QUESTION_LIMIT` perguntas (3 por padrão; 0 desliga o limite). O servidor conta as perguntas registradas na sessão, a interface mostra "Pergunta 2 de 3" e, depois da última resposta, troca o campo de pergunta pelo botão do questionário. Resposta com erro não consome o limite. Sair e entrar de novo abre outra sessão, com novo limite. Para exigir login de quem pergunta durante a coleta, defina `REQUIRE_LOGIN=true` no `.env` (por padrão, o perfil Leitor pergunta sem login e sem registro).
 
+**Várias pessoas ao mesmo tempo.** A busca não usa o modelo que escreve o texto, então os trechos aparecem logo, e só a escrita da resposta entra numa fila por ordem de chegada. Quem espera vê a própria posição, pode ler os artigos e não ocupa o servidor; quem desiste sai da fila sem gastar o modelo. `LLM_MAX_CONCURRENT` define quantas respostas são pedidas ao modelo por vez (2 por padrão). A velocidade da fila depende da máquina: num i7-8700 com GTX 1050 Ti foram cerca de 5 respostas por minuto, então convém distribuir a coleta ao longo do tempo. Respostas que passam de `ANSWER_MAX_CHARS` são interrompidas, para que uma resposta sem fim não prenda a fila.
+
 Com o login da turma, a interface mostra o aviso "Registrando para a pesquisa" e registra:
 
 | O quê | Tabela | Quando |
@@ -277,7 +279,7 @@ O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas
 | `DELETE` | `/api/folders/{folder}/documents/{nome}` | 🔒 Remove um artigo do índice. |
 | `DELETE` | `/api/folders/{folder}` | 🔒 Remove um assunto e seus artigos. |
 | `POST` | `/api/ask` | Recebe `{"question", "folder"?, "source"?, "history"?: [{question, answer}]}` e devolve `{answer, sources, scope, evaluation, standalone_question, used_memory, …}`. |
-| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `meta` → `token`… → `done`. Com o login da turma, a pergunta é registrada e o `done` traz o `interaction_id`. |
+| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `sources` → `queue`… → `meta` → `token`… → `done`. Com o login da turma, a pergunta é registrada e o `done` traz o `interaction_id`. |
 | `POST` | `/api/evaluations` | 👥 Registra a nota (1 a 5) e o comentário de uma resposta (`interaction_id`). |
 | `GET` | `/api/survey` | 👥 Afirmações do questionário e a resposta já enviada pela sessão. |
 | `POST` | `/api/survey` | 👥 Envia (ou substitui) o questionário: `{"answers": {id: nota}, "comment"}`. |
@@ -306,6 +308,7 @@ tcc-alcides-murilo-1/
 │   ├── routers/             # auth, library, chat, evaluation, survey, interactions
 │   ├── rag/
 │   │   ├── service.py       # RAGService: prepare → gerar → avaliar
+│   │   ├── queue.py         # fila de geração das respostas
 │   │   ├── retrieval.py     # busca híbrida + referências
 │   │   ├── lexical.py       # tokenização e BM25
 │   │   ├── memory.py        # memória de pergunta

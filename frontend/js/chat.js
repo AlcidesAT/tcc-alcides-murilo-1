@@ -12,6 +12,7 @@
  *  - Avaliação: selo de confiança automático e nota do usuário (feedback.js)
  *  - Limite do login da turma: "Pergunta 2 de 3" e, ao final, o caminho para
  *    o questionário no lugar do campo de pergunta
+ *  - Espera pela resposta: trechos encontrados na hora e posição na fila
  */
 
 import * as api from "./api.js";
@@ -227,6 +228,8 @@ async function handleSubmit(e) {
 
     try {
         await api.askStream(q, folder, source, history, {
+            onSources: ({ sources }) => bot.showSources(sources),
+            onQueue: (status) => bot.setQueue(status),
             onMeta: (meta) => bot.setMeta(meta),
             onToken: (text) => bot.appendText(text),
             onDone: (result) => {
@@ -254,6 +257,39 @@ function appendUser(text) {
     row.appendChild(bubble);
     messagesEl.appendChild(row);
     scrollToBottom();
+}
+
+function formatEta(seconds) {
+    if (seconds == null) return "";
+    return seconds < 60 ? " · menos de 1 min" : ` · cerca de ${Math.round(seconds / 60)} min`;
+}
+
+/** Trechos encontrados, para ler enquanto a resposta não fica pronta. */
+function buildFoundList(sources) {
+    const box = document.createElement("div");
+    box.className = "found-list";
+
+    const title = document.createElement("div");
+    title.className = "found-title";
+    title.textContent = "Enquanto a resposta é escrita, veja o que foi encontrado nos artigos:";
+    box.appendChild(title);
+
+    sources.forEach((s) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "found-item";
+        item.addEventListener("click", () => openArticle(s.folder, s.source, s.location));
+
+        const name = document.createElement("span");
+        name.className = "found-name";
+        name.textContent = `${s.source} · ${s.location || "trecho"}`;
+        const snippet = document.createElement("span");
+        snippet.className = "found-snippet";
+        snippet.textContent = s.snippet || "";
+        item.append(name, snippet);
+        box.appendChild(item);
+    });
+    return box;
 }
 
 function scopeText(scope) {
@@ -287,6 +323,14 @@ function createBotMessage(question) {
     typing.innerHTML = "<span></span><span></span><span></span>";
     content.appendChild(typing);
 
+    // Andamento da pergunta e trechos encontrados: saem quando o texto começa.
+    const waiting = document.createElement("div");
+    waiting.className = "msg-waiting";
+    const status = document.createElement("div");
+    status.className = "queue-status";
+    waiting.appendChild(status);
+    content.appendChild(waiting);
+
     const body = document.createElement("div");
     body.className = "msg-text";
 
@@ -301,6 +345,7 @@ function createBotMessage(question) {
     function ensureStarted() {
         if (started) return;
         typing.remove();
+        waiting.remove();
         content.appendChild(body);
         started = true;
     }
@@ -308,6 +353,15 @@ function createBotMessage(question) {
     return {
         text() {
             return rawText;
+        },
+        /** Trechos da busca, disponíveis antes de o modelo escrever a resposta. */
+        showSources(sources) {
+            setReferences(sources, "Nenhum trecho encontrado até aqui.");
+            if (sources?.length) waiting.appendChild(buildFoundList(sources));
+            scrollToBottom();
+        },
+        setQueue({ position, eta_seconds }) {
+            status.textContent = `Você é o ${position}º da fila${formatEta(eta_seconds)}`;
         },
         appendText(text) {
             ensureStarted();
@@ -318,6 +372,7 @@ function createBotMessage(question) {
         /** Antes da geração: mostra se a memória ajudou a entender a pergunta. */
         setMeta(m) {
             meta = m || {};
+            status.textContent = "Escrevendo a resposta…";
             setMaxTurns(meta.memory_max_turns);
             if (!meta.used_memory) return;
 

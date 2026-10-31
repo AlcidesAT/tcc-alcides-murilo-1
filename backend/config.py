@@ -58,6 +58,14 @@ MMR_LAMBDA = 0.7
 REFERENCES_MAX = 5
 REFERENCES_MIN_RATIO = 0.45
 
+# Fila de geração (ver rag/queue.py):
+#  - LLM_MAX_CONCURRENT: respostas pedidas ao modelo ao mesmo tempo.
+#  - QUEUE_UPDATE_SECONDS: de quanto em quanto a posição na fila é atualizada.
+#  - ANSWER_MAX_CHARS: corta a resposta nesse tamanho (as normais têm até ~3.800).
+LLM_MAX_CONCURRENT = int(os.getenv("LLM_MAX_CONCURRENT", "2"))
+QUEUE_UPDATE_SECONDS = 3
+ANSWER_MAX_CHARS = 6000
+
 # Memória de pergunta (conversa):
 #  - MEMORY_MAX_TURNS: quantos pares pergunta/resposta anteriores são lembrados.
 #  - MEMORY_ANSWER_CHARS: tamanho máximo de cada resposta anterior levada ao
