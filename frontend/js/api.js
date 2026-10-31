@@ -117,6 +117,10 @@ export async function getArticleContent(folder, source) {
     return request(path);
 }
 
+export function articleFileUrl(folder, source) {
+    return `/api/articles/${encodeURIComponent(folder)}/${encodeURIComponent(source)}/file`;
+}
+
 export async function createFolder(name) {
     return request("/api/folders", {
         method: "POST",

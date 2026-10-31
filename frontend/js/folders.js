@@ -3,13 +3,14 @@
  *
  * Responsável por:
  *  - Criar pasta nova (form sempre visível)
- *  - Listar pastas existentes (com seus artigos como sub-itens)
+ *  - Listar pastas existentes (com seus artigos como sub-itens clicáveis)
  *  - Remover pastas e artigos individuais
  *  - Recarregar o estado global (state.js) — é a única fonte de verdade
  *    quanto a "que pastas/documentos existem"
  */
 
 import * as api from "./api.js";
+import { openArticle } from "./reader.js";
 import { setData } from "./state.js";
 
 const folderListEl = document.getElementById("folder-list");
@@ -134,8 +135,12 @@ function buildDocItem(doc) {
     del.className = "del-btn";
     del.textContent = "✕";
     del.title = "Remover artigo";
-    del.addEventListener("click", () => handleDeleteDoc(doc.folder, doc.source));
+    del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleDeleteDoc(doc.folder, doc.source);
+    });
     li.append(name, meta, del);
+    li.addEventListener("click", () => openArticle(doc.folder, doc.source));
     return li;
 }
 

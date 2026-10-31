@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from config import (
@@ -108,6 +109,27 @@ def article_content(folder: str, source: str):
 
     content = files[0].read_text(encoding="utf-8", errors="replace")
     return {"folder": slugify_folder(folder), "source": source, "content": content}
+
+
+@router.get("/articles/{folder}/{source}/file")
+def article_file(folder: str, source: str):
+    """Entrega um artigo .pdf para o visualizador do navegador.
+
+    Aberto a qualquer perfil, como a leitura de .md/.txt.
+    """
+    if Path(source).suffix.lower() != ".pdf":
+        raise HTTPException(status_code=415, detail="Disponível apenas para arquivos .pdf.")
+
+    files = article_files(DOCUMENTS_DIR / slugify_folder(folder), source)
+    if not files:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+
+    return FileResponse(
+        files[0],
+        media_type="application/pdf",
+        filename=source,
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/upload", dependencies=[Depends(require_admin)])

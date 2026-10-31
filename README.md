@@ -268,6 +268,8 @@ O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas
 | `GET` | `/api/folders` | Lista os assuntos (pastas) e contagem de artigos. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |
 | `GET` | `/api/articles` | Lista os artigos arquivados no PostgreSQL (metadados). |
+| `GET` | `/api/articles/{folder}/{source}/content` | Texto de um artigo `.md`/`.txt` para o leitor do site. |
+| `GET` | `/api/articles/{folder}/{source}/file` | Arquivo `.pdf` para o visualizador do navegador. |
 | `POST` | `/api/folders` | 🔒 Cria um novo assunto (pasta). |
 | `POST` | `/api/upload` | 🔒 Recebe um arquivo (`multipart/form-data`) e o indexa. |
 | `DELETE` | `/api/folders/{folder}/documents/{nome}` | 🔒 Remove um artigo do índice. |
