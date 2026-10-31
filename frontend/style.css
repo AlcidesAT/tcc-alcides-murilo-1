@@ -920,6 +920,29 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .send-btn:active:not(:disabled) { transform: scale(0.95); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.composer[hidden] { display: none; }
+.question-quota {
+    margin: 0 6px 6px;
+    text-align: right;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--green-deep);
+}
+.quota-done {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.quota-done[hidden] { display: none; }
+
 .disclaimer {
     text-align: center;
     color: var(--muted);

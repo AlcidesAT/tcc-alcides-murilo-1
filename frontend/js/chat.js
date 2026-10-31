@@ -10,6 +10,8 @@
  *  - Memória de pergunta: envia o histórico da conversa e mostra quando a
  *    pergunta foi reinterpretada com base nele (ver memory.js)
  *  - Avaliação: selo de confiança automático e nota do usuário (feedback.js)
+ *  - Limite do login da turma: "Pergunta 2 de 3" e, ao final, o caminho para
+ *    o questionário no lugar do campo de pergunta
  */
 
 import * as api from "./api.js";
@@ -24,6 +26,7 @@ import {
     setMaxTurns,
 } from "./memory.js";
 import { buildFeedback, buildQualityBadge } from "./feedback.js";
+import { openSurvey } from "./survey.js";
 
 const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
@@ -39,6 +42,9 @@ const newChatBtn = document.getElementById("new-chat-btn");
 const collapseBtn = document.getElementById("collapse-btn");
 const openSidebarBtn = document.getElementById("open-sidebar-btn");
 const appEl = document.getElementById("app");
+const quotaEl = document.getElementById("question-quota");
+const quotaDoneEl = document.getElementById("quota-done");
+const quotaDoneText = document.getElementById("quota-done-text");
 
 let documentsByFolder = {};
 
@@ -67,6 +73,27 @@ export function initChat() {
             questionEl.focus();
         });
     });
+
+    document.getElementById("quota-survey").addEventListener("click", openSurvey);
+    document.addEventListener("rolechange", refreshQuota);
+    refreshQuota(); // o login salvo é lido antes de este módulo iniciar
+}
+
+async function refreshQuota() {
+    setQuota(api.isParticipant() ? await api.getQuota() : null);
+}
+
+/** Mostra quantas perguntas restam; esgotadas, troca o campo pelo questionário. */
+function setQuota(quota) {
+    const limit = quota?.questions_limit || 0;
+    const used = quota?.questions_used || 0;
+    const finished = limit > 0 && used >= limit;
+
+    quotaEl.hidden = !limit || finished;
+    quotaEl.textContent = `Pergunta ${used + 1} de ${limit}`;
+    askForm.hidden = finished;
+    quotaDoneEl.hidden = !finished;
+    quotaDoneText.textContent = `Você fez as ${limit} perguntas. Falta só o questionário de avaliação.`;
 }
 
 function autoResize() {
@@ -178,7 +205,8 @@ function updateArticleOptions(preferred = "") {
 async function handleSubmit(e) {
     e.preventDefault();
     const q = questionEl.value.trim();
-    if (!q) return;
+    // O Enter envia o formulário mesmo com o botão desativado.
+    if (!q || askBtn.disabled) return;
 
     const folder = scopeFolder.value || null;
     const source =
@@ -204,11 +232,13 @@ async function handleSubmit(e) {
             onDone: (result) => {
                 bot.finalize(result);
                 remember(q, bot.text(), askedAt);
+                if (result.questions_limit) setQuota(result);
             },
             onError: (err) => bot.fail(err.message),
         });
     } catch (err) {
         bot.fail(err.message);
+        refreshQuota();
     } finally {
         askBtn.disabled = false;
         questionEl.focus();

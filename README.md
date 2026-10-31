@@ -188,6 +188,8 @@ O banco e o Ollama não ficam expostos fora do Docker; só a aplicação abre um
 
 Para a aplicação com a turma, todos usam o **mesmo login**: o usuário é `turma` (ou o definido em `PARTICIPANT_USER`) e a senha é a que vocês definirem em `PARTICIPANT_PASSWORD` no `.env`. As senhas ficam **só no `.env`**, que está fora do Git: o código não tem senha padrão, e um login sem senha definida fica desativado. Cada vez que alguém entra, o sistema abre uma **sessão anônima** no banco: dá para contar quantas pessoas participaram e agrupar os dados de cada uma sem guardar nomes. O login da turma depende do PostgreSQL; se o banco estiver fora do ar, ele é recusado em vez de deixar alguém usar o sistema sem que nada seja registrado.
 
+**Limite de perguntas.** Cada sessão do login da turma pode fazer até `PARTICIPANT_QUESTION_LIMIT` perguntas (3 por padrão; 0 desliga o limite). O servidor conta as perguntas registradas na sessão, a interface mostra "Pergunta 2 de 3" e, depois da última resposta, troca o campo de pergunta pelo botão do questionário. Resposta com erro não consome o limite. Sair e entrar de novo abre outra sessão, com novo limite. Para exigir login de quem pergunta durante a coleta, defina `REQUIRE_LOGIN=true` no `.env` (por padrão, o perfil Leitor pergunta sem login e sem registro).
+
 Com o login da turma, a interface mostra o aviso "Registrando para a pesquisa" e registra:
 
 | O quê | Tabela | Quando |
@@ -263,7 +265,7 @@ O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas
 | --- | --- | --- |
 | `GET` | `/api/health` | Verifica se a API está no ar. |
 | `POST` | `/api/auth/login` | Recebe `{"username", "password"}` (turma ou admin) e devolve `{token, role}`. |
-| `GET` | `/api/auth/me` | Perfil do token atual (`leitor`, `participante` ou `admin`). |
+| `GET` | `/api/auth/me` | Perfil do token atual (`leitor`, `participante` ou `admin`) e, com o login da turma, as perguntas usadas e o limite da sessão. |
 | `POST` | `/api/auth/logout` | Encerra a sessão do participante. |
 | `GET` | `/api/folders` | Lista os assuntos (pastas) e contagem de artigos. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |

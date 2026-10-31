@@ -96,6 +96,16 @@ export async function refreshRole() {
     }
 }
 
+/** Perguntas usadas e limite da sessão do participante (null sem limite). */
+export async function getQuota() {
+    try {
+        const data = await request("/api/auth/me", { headers: authHeaders() });
+        return data.questions_limit ? data : null;
+    } catch {
+        return null;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Folders & documents
 // ---------------------------------------------------------------------------
@@ -171,7 +181,8 @@ export async function ask(question, folder, source, history = []) {
  *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
  *   onToken(text)    — a cada pedaço de texto gerado
  *   onDone(result)   — ao final: { sources, scope, evaluation, model,
- *                      interaction_id, collected, ... }
+ *                      interaction_id, collected, questions_used,
+ *                      questions_limit, ... }
  *   onError(error)   — em caso de erro durante a geração
  */
 export async function askStream(question, folder, source, history, { onMeta, onToken, onDone, onError }) {

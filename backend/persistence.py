@@ -7,8 +7,26 @@ nunca interrompe a resposta ao usuário.
 
 from typing import Dict, Optional
 
+from config import PARTICIPANT_QUESTION_LIMIT
 from database import SessionLocal
 from models import Interaction, QuestionSource
+
+
+def session_quota(session_id) -> Dict:
+    """Perguntas registradas na sessão do participante e o limite por sessão.
+
+    Se o banco falhar, conta zero: a falha não impede a pessoa de perguntar.
+    """
+    used = 0
+    try:
+        db = SessionLocal()
+        try:
+            used = db.query(Interaction).filter(Interaction.session_id == session_id).count()
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"[WARNING] Não foi possível contar as perguntas da sessão: {exc}")
+    return {"questions_used": used, "questions_limit": PARTICIPANT_QUESTION_LIMIT}
 
 
 def save_interaction(session_id, question: str, result: Dict, response_ms: int) -> Optional[str]:

@@ -38,7 +38,7 @@ export function initSurvey() {
     });
 }
 
-async function openSurvey() {
+export async function openSurvey() {
     modal.hidden = false;
     submitBtn.hidden = false;
     submitBtn.disabled = true;
@@ -152,7 +152,7 @@ async function submit(e) {
         bodyEl.innerHTML =
             '<div class="survey-thanks"><div class="survey-thanks-mark">★</div>' +
             "<h4>Obrigado pela avaliação!</h4>" +
-            "<p>Suas respostas foram registradas. Você pode continuar usando o sistema normalmente.</p></div>";
+            "<p>Suas respostas foram registradas. Você pode continuar consultando os artigos.</p></div>";
         submitBtn.hidden = true;
         setStatus("");
         document.dispatchEvent(new CustomEvent("evaluation:saved"));

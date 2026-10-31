@@ -35,6 +35,8 @@ class AskResponse(BaseModel):
     memory_max_turns: int
     interaction_id: Optional[str] = None  # pergunta registrada (login da turma)
     collected: bool = False
+    questions_used: Optional[int] = None  # só com o login da turma
+    questions_limit: Optional[int] = None
 
 
 class CreateFolderRequest(BaseModel):

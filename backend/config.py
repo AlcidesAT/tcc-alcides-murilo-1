@@ -116,6 +116,12 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 PARTICIPANT_USER = os.getenv("PARTICIPANT_USER", "turma")
 PARTICIPANT_PASSWORD = os.getenv("PARTICIPANT_PASSWORD", "")
 
+# Coleta da pesquisa:
+#  - PARTICIPANT_QUESTION_LIMIT: perguntas por sessão do login da turma (0 = sem limite).
+#  - REQUIRE_LOGIN: "true" exige login para perguntar, sem o perfil Leitor.
+PARTICIPANT_QUESTION_LIMIT = int(os.getenv("PARTICIPANT_QUESTION_LIMIT", "3"))
+REQUIRE_LOGIN = os.getenv("REQUIRE_LOGIN", "false").lower() == "true"
+
 # Questionário de avaliação do sistema (afirmações de 1 a 5 estrelas).
 SURVEY_FILE = EVALUATION_DIR / "questionario.json"
 

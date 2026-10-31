@@ -8,15 +8,34 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from config import slugify_folder
-from dependencies import Principal, get_principal, get_rag
-from persistence import save_interaction, save_sources
+from config import REQUIRE_LOGIN, slugify_folder
+from dependencies import LEITOR, Principal, get_principal, get_rag
+from persistence import save_interaction, save_sources, session_quota
 from rag import RAGContext, RAGService
 from schemas import AskRequest, AskResponse
 
 router = APIRouter(prefix="/api", tags=["perguntas"])
 
 OLLAMA_HINT = "Verifique se o Ollama está em execução e se os modelos foram baixados."
+
+
+def _authorize(principal: Principal) -> None:
+    """Regras da coleta: login obrigatório (opcional) e limite por sessão.
+
+    A pergunta só conta depois de respondida e registrada: resposta com erro
+    não consome o limite.
+    """
+    if REQUIRE_LOGIN and principal.role == LEITOR:
+        raise HTTPException(status_code=401, detail="Entre com o login da turma para fazer perguntas.")
+    if not principal.is_participant:
+        return
+    quota = session_quota(principal.session_id)
+    limit = quota["questions_limit"]
+    if limit and quota["questions_used"] >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Você já fez as {limit} perguntas desta sessão. Responda ao questionário de avaliação.",
+        )
 
 
 def _validate_ask(payload: AskRequest, rag: RAGService):
@@ -53,11 +72,15 @@ def _prepare(payload: AskRequest, rag: RAGService) -> RAGContext:
 
 def _collect(principal: Principal, ctx: RAGContext, result: dict, started: float) -> dict:
     """Com o login da turma, registra a pergunta e a resposta no banco."""
-    interaction_id = None
-    if principal.is_participant:
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
-    return {"interaction_id": interaction_id, "collected": interaction_id is not None}
+    if not principal.is_participant:
+        return {"interaction_id": None, "collected": False}
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
+    return {
+        "interaction_id": interaction_id,
+        "collected": interaction_id is not None,
+        **session_quota(principal.session_id),
+    }
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -67,6 +90,7 @@ def ask(
     principal: Principal = Depends(get_principal),
 ):
     started = time.perf_counter()
+    _authorize(principal)
     ctx = _prepare(payload, rag)
     try:
         answer = rag.generate(ctx)
@@ -97,11 +121,12 @@ def ask_stream(
       {"type":"meta", "standalone_question", "used_memory", "memory_turns", ...}
       {"type":"token","text":...}  (vários, durante a geração)
       {"type":"done","sources":[...],"scope":...,"evaluation":{...},"model":...,
-       "interaction_id":..., "collected":...}
+       "interaction_id":..., "collected":..., "questions_used":..., "questions_limit":...}
     Erros durante a geração viram {"type":"error","detail":...}. Com o login da
     turma, a pergunta é registrada antes do evento "done" (que leva o id).
     """
     started = time.perf_counter()
+    _authorize(principal)
     # Memória + recuperação acontecem antes do streaming para que falhas (ex.:
     # Ollama indisponível ao gerar embeddings) retornem um status HTTP adequado.
     ctx = _prepare(payload, rag)

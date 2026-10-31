@@ -2,7 +2,7 @@
 Login dos perfis Participante (login da turma) e Administrador.
 
   - POST /api/auth/login   {username, password} -> {token, role}
-  - GET  /api/auth/me      perfil do token atual (a interface confere ao abrir)
+  - GET  /api/auth/me      perfil do token atual e perguntas usadas na sessão
   - POST /api/auth/logout  encerra a sessão do participante
 """
 
@@ -16,6 +16,7 @@ from config import ADMIN_PASSWORD, ADMIN_USER, PARTICIPANT_PASSWORD, PARTICIPANT
 from database import get_db
 from dependencies import ADMIN, ADMIN_TOKEN, PARTICIPANTE, Principal, get_principal
 from models import ParticipantSession
+from persistence import session_quota
 from schemas import LoginRequest
 
 router = APIRouter(prefix="/api/auth", tags=["login"])
@@ -65,6 +66,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def me(principal: Principal = Depends(get_principal)):
+    if principal.is_participant:
+        return {"role": principal.role, **session_quota(principal.session_id)}
     return {"role": principal.role}
 
 
