@@ -13,13 +13,14 @@ from langchain_core.documents import Document
 from config import (
     MMR_FETCH_K,
     MMR_LAMBDA,
+    REFERENCE_MIN_CHUNK_RATIO,
     REFERENCES_MAX,
     REFERENCES_MIN_RATIO,
     RELEVANCE_MAX_DISTANCE,
     RELEVANCE_MIN_COVERAGE,
     RETRIEVAL_K,
 )
-from rag.lexical import LexicalIndex, tokenize
+from rag.lexical import LexicalIndex, is_noise, tokenize
 
 
 def location_label(md: dict) -> str:
@@ -98,7 +99,7 @@ class HybridRetriever:
     ) -> List[Document]:
         """Busca semântica (MMR) — relevância + diversidade no espaço vetorial."""
         search_kwargs = {
-            "k": RETRIEVAL_K,
+            "k": RETRIEVAL_K * 2,  # o ruído é descartado depois da busca
             "fetch_k": MMR_FETCH_K,
             "lambda_mult": MMR_LAMBDA,
         }
@@ -115,7 +116,7 @@ class HybridRetriever:
         retriever = self.vectorstore.as_retriever(
             search_type="mmr", search_kwargs=search_kwargs
         )
-        return retriever.invoke(query)
+        return [d for d in retriever.invoke(query) if not is_noise(d.page_content)]
 
     def _keyword_search(
         self,
@@ -163,9 +164,35 @@ class HybridRetriever:
             if keyword_docs:
                 ranked.append(keyword_docs)
 
-        if len(ranked) == 1:
-            return ranked[0][:RETRIEVAL_K]
-        return _fuse(ranked)[:RETRIEVAL_K]
+        docs = ranked[0] if len(ranked) == 1 else _fuse(ranked)
+        return self._with_closing(docs)[:RETRIEVAL_K]
+
+    def _with_closing(self, docs: List[Document]) -> List[Document]:
+        """Abre o contexto com a conclusão do artigo mais relevante.
+
+        A busca costuma trazer introduções, que falam do tema, e a resposta fica
+        genérica; a conclusão resume o que o artigo de fato encontrou.
+        """
+        if not docs:
+            return docs
+        meta = docs[0].metadata
+        closing = self.lexical.closing_chunk(meta.get("folder"), meta.get("source"))
+        if closing is None:
+            return docs
+        key = _doc_key(closing["meta"])
+        rest = [d for d in docs if _doc_key(d.metadata) != key]
+        return [Document(page_content=closing["text"], metadata=closing["meta"])] + rest
+
+    def _first_relevant(self, chunks: List[Dict], terms: List[str]) -> Dict:
+        """Primeiro trecho do artigo que trata do tema, para citar onde ele começa.
+
+        O trecho inicial traz título e autores: citá-lo levaria sempre à página 1.
+        """
+        ordered = sorted(chunks, key=lambda ch: ch["meta"].get("chunk_index") or 0)
+        body = ordered[1:] or ordered
+        scores = [self.lexical.score_chunk(ch, terms) for ch in body]
+        cutoff = max(scores) * REFERENCE_MIN_CHUNK_RATIO
+        return next(ch for ch, score in zip(body, scores) if score >= cutoff)
 
     def build_references(
         self,
@@ -191,8 +218,7 @@ class HybridRetriever:
             for s, art in scored:
                 if s < cutoff or len(refs) >= REFERENCES_MAX:
                     break
-                # Melhor trecho do artigo para o snippet/localização.
-                best = max(art["chunks"], key=lambda ch: self.lexical.score_chunk(ch, terms))
+                best = self._first_relevant(art["chunks"], terms)
                 refs.append(ref_entry(best["text"], best["meta"]))
             return refs
 

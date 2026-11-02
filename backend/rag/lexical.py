@@ -43,6 +43,42 @@ K1, B = 1.5, 0.75
 # Radical simples por corte: "fertilizante"/"fertilizantes" -> "fertil".
 STEM_LEN = 6
 
+# Bibliografia e dados dos autores repetem os termos do tema e venciam a busca,
+# sem trazer nenhum conteúdo do artigo. Os artigos não têm marcação de seções,
+# então esses trechos são reconhecidos pelo texto. A densidade é a de marcas de
+# citação por 1.000 caracteres: 8 pega a bibliografia e poupa o texto corrido.
+_CITATION = re.compile(
+    r"Dispon[ií]vel em|Acesso em|Acessado em|https?://|www\.|\bv\.\s*\d|\bn\.\s*\d"
+    r"|\bp\.\s*\d+\s*[-–]\s*\d+|\b[A-ZÀ-Ý]{3,},\s+[A-ZÀ-Ý][a-zà-ÿ]*\.?"
+    r"|Disserta[cç][aã]o \(|Tese \(|\bISSN\b|\bdoi\b"
+)
+BIBLIOGRAPHY_MIN_DENSITY = 8
+MIN_CONTENT_CHARS = 150
+_AUTHORS_BLOCK = re.compile(r"Sobre o\(s\) autor|Titula[cç][aã]o, v[ií]nculo", re.IGNORECASE)
+_AFFILIATION = re.compile(r"Acad[eê]mic[oa] d[oe]|Graduand[oa] |Docente d|Doutor[a]? em|Mestr[ea] em")
+_CONCLUSION = re.compile(
+    r"\bCONCLUS[ÃÕO]|\bCONSIDERAÇÕES FINAIS|^\W*(?:\d+\W*)?(?:Conclus(?:ão|ões)|Considerações [Ff]inais)\b",
+    re.MULTILINE,
+)
+
+
+def has_conclusion(text: str) -> bool:
+    return bool(_CONCLUSION.search(text))
+
+
+def is_noise(text: str) -> bool:
+    """Trecho sem conteúdo do artigo: bibliografia ou dados dos autores.
+
+    Um trecho com a conclusão nunca é ruído, mesmo que a bibliografia comece nele.
+    """
+    if has_conclusion(text):
+        return False
+    if len(text.strip()) < MIN_CONTENT_CHARS:  # legendas de figura, restos de página
+        return True
+    if _AUTHORS_BLOCK.search(text) or len(_AFFILIATION.findall(text)) >= 2:
+        return True
+    return len(_CITATION.findall(text)) / max(len(text), 1) * 1000 >= BIBLIOGRAPHY_MIN_DENSITY
+
 
 def words(text: str) -> List[str]:
     """Todas as palavras do texto, sem acentos e em minúsculas."""
@@ -127,7 +163,16 @@ class LexicalIndex:
                 tokens = tokenize(text)
                 tf = Counter(tokens)
                 stems = {stem(t) for t in tf}
-                chunks.append({"text": text, "meta": meta or {}, "tf": tf, "len": len(tokens), "stems": stems})
+                chunks.append(
+                    {
+                        "text": text,
+                        "meta": meta or {},
+                        "tf": tf,
+                        "len": len(tokens),
+                        "stems": stems,
+                        "noise": is_noise(text),
+                    }
+                )
                 total_len += len(tokens)
                 df.update(tf.keys())
                 stem_df.update(stems)
@@ -148,6 +193,8 @@ class LexicalIndex:
     def _scoped(self, folder: Optional[str], source: Optional[str]) -> Iterable[Dict]:
         for ch in self._chunks:
             meta = ch["meta"]
+            if ch["noise"]:
+                continue
             if folder and meta.get("folder") != folder:
                 continue
             if source and meta.get("source") != source:
@@ -158,6 +205,14 @@ class LexicalIndex:
         """Trechos do acervo (na ordem de indexação), restritos ao escopo."""
         self.refresh()
         return self._scoped(folder, source)
+
+    def closing_chunk(self, folder: Optional[str], source: Optional[str]) -> Optional[Dict]:
+        """Trecho que fecha o artigo: a conclusão ou, sem ela, o último com conteúdo."""
+        self.refresh()
+        chunks = sorted(self._scoped(folder, source), key=lambda ch: ch["meta"].get("chunk_index") or 0)
+        if not chunks:
+            return None
+        return next((ch for ch in reversed(chunks) if has_conclusion(ch["text"])), chunks[-1])
 
     def score_chunk(self, chunk: Dict, terms: List[str]) -> float:
         return bm25(chunk["tf"], chunk["len"], terms, self._idf, self._avgdl)

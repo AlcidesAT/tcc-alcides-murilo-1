@@ -40,12 +40,13 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 # Recuperação:
-#  - RETRIEVAL_K: quantos trechos são enviados ao modelo (mais = resposta mais completa).
+#  - RETRIEVAL_K: quantos trechos são enviados ao modelo. Com 8, o llama3.2:1b se
+#    confundia e chegava a contradizer o artigo; com 4, responde fiel à conclusão.
 #  - MMR_FETCH_K: quantos candidatos a busca examina antes de escolher os K finais.
 #  - MMR_LAMBDA: 0 = máxima diversidade, 1 = máxima relevância. 0.7 prioriza a
 #    relevância (mantendo alguma diversidade), o que melhora perguntas cujo
 #    conteúdo está concentrado em um único artigo, mesmo sem filtrar por assunto.
-RETRIEVAL_K = 8
+RETRIEVAL_K = 4
 MMR_FETCH_K = 40
 MMR_LAMBDA = 0.7
 
@@ -55,8 +56,11 @@ MMR_LAMBDA = 0.7
 #    relevância (BM25 no nível do artigo) seja >= esta fração do melhor. Assim,
 #    quando só um artigo trata do tema, só ele aparece (sem completar a lista
 #    com artigos pouco relacionados).
+#  - REFERENCE_MIN_CHUNK_RATIO: dentro do artigo, cita o primeiro trecho com pelo
+#    menos esta fração da relevância do melhor, ou seja, onde o tema começa.
 REFERENCES_MAX = 5
 REFERENCES_MIN_RATIO = 0.45
+REFERENCE_MIN_CHUNK_RATIO = 0.7
 
 # Fila de geração (ver rag/queue.py):
 #  - LLM_MAX_CONCURRENT: respostas pedidas ao modelo ao mesmo tempo.
