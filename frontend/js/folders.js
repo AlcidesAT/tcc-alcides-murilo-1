@@ -124,9 +124,9 @@ function buildFolderGroup(folder, docs) {
 
 function buildDocItem(doc) {
     const li = document.createElement("li");
+    li.setAttribute("data-tip", doc.source);
     const name = document.createElement("span");
     name.className = "doc-name";
-    name.title = doc.source;
     name.textContent = doc.source;
     const meta = document.createElement("span");
     meta.className = "doc-meta";
