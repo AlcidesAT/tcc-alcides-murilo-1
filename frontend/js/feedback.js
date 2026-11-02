@@ -42,6 +42,14 @@ export function buildQualityBadge(evaluation) {
         );
         return el;
     }
+    if (level === "fora") {
+        el.textContent = "Fora dos artigos";
+        el.setAttribute(
+            "data-tip",
+            "Nada no acervo trata desta pergunta. Ela não conta no limite nem é registrada.",
+        );
+        return el;
+    }
     el.textContent = `${LEVEL_LABELS[level] || level} · fundamentação ${pct(evaluation.groundedness)}`;
     el.setAttribute(
         "data-tip",

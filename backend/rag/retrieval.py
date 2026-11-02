@@ -15,6 +15,8 @@ from config import (
     MMR_LAMBDA,
     REFERENCES_MAX,
     REFERENCES_MIN_RATIO,
+    RELEVANCE_MAX_DISTANCE,
+    RELEVANCE_MIN_COVERAGE,
     RETRIEVAL_K,
 )
 from rag.lexical import LexicalIndex, tokenize
@@ -125,6 +127,18 @@ class HybridRetriever:
         os trechos onde aparecem, mesmo quando a busca semântica não os destaca."""
         hits = self.lexical.search_chunks(tokenize(query), folder, source, k=RETRIEVAL_K)
         return [Document(page_content=ch["text"], metadata=ch["meta"]) for _, ch in hits]
+
+    def off_topic(self, question: str) -> bool:
+        """A pergunta foge dos artigos?
+
+        A busca sempre devolve os trechos mais próximos, mesmo sem relação com a
+        pergunta. Só é considerada fora quem falha nos dois sinais: os termos
+        não aparecem juntos em nenhum trecho e nada no acervo tem sentido próximo.
+        """
+        if self.lexical.term_coverage(tokenize(question)) >= RELEVANCE_MIN_COVERAGE:
+            return False
+        nearest = self.vectorstore.similarity_search_with_score(question, k=1)
+        return not nearest or nearest[0][1] > RELEVANCE_MAX_DISTANCE
 
     def retrieve(
         self,

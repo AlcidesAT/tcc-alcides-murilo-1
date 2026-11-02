@@ -100,6 +100,7 @@ class LexicalIndex:
         self._avgdl: float = 0.0
         self._count: int = -1
         self._articles: Dict[tuple, Dict] = {}  # estatísticas por escopo
+        self._stem_idf: Dict[str, float] = {}
 
     def invalidate(self) -> None:
         """Força a reconstrução na próxima consulta.
@@ -120,17 +121,21 @@ class LexicalIndex:
             raw = self._vectorstore.get(include=["documents", "metadatas"])
             chunks = []
             df: Counter = Counter()
+            stem_df: Counter = Counter()
             total_len = 0
             for text, meta in zip(raw.get("documents") or [], raw.get("metadatas") or []):
                 tokens = tokenize(text)
                 tf = Counter(tokens)
-                chunks.append({"text": text, "meta": meta or {}, "tf": tf, "len": len(tokens)})
+                stems = {stem(t) for t in tf}
+                chunks.append({"text": text, "meta": meta or {}, "tf": tf, "len": len(tokens), "stems": stems})
                 total_len += len(tokens)
                 df.update(tf.keys())
+                stem_df.update(stems)
 
             n = len(chunks) or 1
             self._chunks = chunks
             self._idf = _idf(df, n)
+            self._stem_idf = _idf(stem_df, n)
             self._avgdl = total_len / n
             self._articles = {}
             self._count = count
@@ -175,6 +180,24 @@ class LexicalIndex:
                 scored.append((s, ch))
         scored.sort(key=lambda x: x[0], reverse=True)
         return scored[:k]
+
+    def term_coverage(self, terms: List[str]) -> float:
+        """Maior fração da pergunta reunida em um único trecho (de 0 a 1).
+
+        Cada termo pesa pela raridade: "milho" conta mais que "melhor", e um
+        termo ausente do acervo pesa o máximo. Usa radicais, como a avaliação.
+        """
+        self.refresh()
+        absent = _idf(Counter({"": 0}), len(self._chunks) or 1)[""]
+        weights = {s: self._stem_idf.get(s, absent) for s in map(stem, terms)}
+        total = sum(weights.values())
+        if not total:
+            return 0.0
+        best = max(
+            (sum(weights[s] for s in weights.keys() & ch["stems"]) for ch in self._chunks),
+            default=0.0,
+        )
+        return best / total
 
     def rank_articles(
         self,

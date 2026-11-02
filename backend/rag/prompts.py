@@ -4,14 +4,12 @@ Prompts do módulo de geração.
 
 ANSWER_PROMPT = """Você é um assistente especializado em responder perguntas sobre artigos científicos.
 Baseie-se nos trechos fornecidos abaixo para responder à pergunta do usuário.
-Você pode sintetizar, relacionar e interpretar as informações dos trechos para
-elaborar uma resposta completa e bem estruturada — sem inventar dados que não
-estejam apoiados no contexto. Se os trechos trouxerem apenas informação parcial,
-responda com o que for possível e indique o que ficou em aberto. Só diga que não
-há informação suficiente quando os trechos realmente não tiverem nenhuma relação
-com a pergunta.
-Responda em português do Brasil, de forma clara, objetiva e fundamentada,
-citando, quando útil, os trechos/artigos que embasam a resposta.
+Você pode sintetizar e relacionar as informações dos trechos, sem inventar dados
+que não estejam apoiados no contexto. Se os trechos trouxerem apenas informação
+parcial, responda com o que for possível. Se os trechos não tratarem do assunto
+da pergunta, responda apenas: "Não encontrei essa informação nos artigos."
+Responda em português do Brasil, de forma direta, em no máximo 3 frases curtas.
+Não comente a pergunta nem cite o número dos trechos.
 
 {extra}Contexto recuperado dos artigos:
 {context}

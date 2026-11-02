@@ -1138,6 +1138,7 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .quality-badge.level-baixa { background: #fde6e5; color: #a3322e; border-color: #f4c3c1; }
 .quality-badge.level-indefinido { background: var(--elevated); color: var(--muted); border-color: var(--border); }
 .quality-badge.level-acervo { background: #e2f0f2; color: var(--teal); border-color: #bcdbe0; }
+.quality-badge.level-fora { background: var(--elevated); color: var(--muted); border-color: var(--border); }
 
 .feedback {
     display: flex;

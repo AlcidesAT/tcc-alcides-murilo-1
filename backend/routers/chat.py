@@ -75,11 +75,17 @@ def _prepare(payload: AskRequest, rag: RAGService, rewrite: bool = True) -> RAGC
 
 
 def _collect(principal: Principal, ctx: RAGContext, result: dict, started: float) -> dict:
-    """Com o login da turma, registra a pergunta e a resposta no banco."""
+    """Com o login da turma, registra a pergunta e a resposta no banco.
+
+    Pergunta fora dos artigos não é registrada: quem foi recusado reformula sem
+    gastar uma das perguntas da sessão.
+    """
     if not principal.is_participant:
         return {"interaction_id": None, "collected": False}
-    elapsed_ms = int((time.perf_counter() - started) * 1000)
-    interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
+    interaction_id = None
+    if not ctx.off_topic:
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
     return {
         "interaction_id": interaction_id,
         "collected": interaction_id is not None,

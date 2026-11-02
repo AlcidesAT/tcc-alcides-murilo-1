@@ -13,13 +13,13 @@ Fluxo de uma pergunta:
     evaluate() -> fundamentação da resposta nos trechos recuperados
 """
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 
@@ -48,7 +48,21 @@ from rag.memory import (
 from rag.prompts import ANSWER_PROMPT, HISTORY_BLOCK
 from rag.retrieval import HybridRetriever, location_label, scope_label
 
-ANSWER_CUT_NOTICE = "\n\n*(Resposta interrompida por ficar longa demais.)*"
+OFF_TOPIC_ANSWER = (
+    "Não encontrei esse assunto nos artigos do acervo. Tente perguntar com outras "
+    "palavras ou escolha um assunto ou artigo no seletor do topo."
+)
+
+# Perto do limite, a resposta só é liberada em frases inteiras, para o corte não
+# cair no meio de uma.
+ANSWER_WHOLE_SENTENCES_CHARS = 200
+_SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+
+
+def _last_sentence_end(text: str) -> int:
+    """Posição logo após a última frase completa do texto (0 se não houver)."""
+    ends = [m.end() for m in _SENTENCE_END.finditer(text)]
+    return ends[-1] if ends else 0
 
 
 @dataclass
@@ -64,6 +78,8 @@ class RAGContext:
     sources: List[Dict] = field(default_factory=list)
     # Pergunta sobre o acervo: resposta montada direto do índice, sem o LLM.
     catalog_answer: Optional[str] = None
+    # Pergunta sem relação com os artigos: recusada sem o LLM (ver prepare).
+    off_topic: bool = False
 
     @property
     def standalone_question(self) -> str:
@@ -125,9 +141,7 @@ class RAGService:
         self.condenser = QuestionCondenser(
             ChatOllama(model=LLM_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
         )
-        self.answer_chain = (
-            ChatPromptTemplate.from_template(ANSWER_PROMPT) | self.llm | StrOutputParser()
-        )
+        self.answer_prompt = ChatPromptTemplate.from_template(ANSWER_PROMPT)
 
     # ------------------------------------------------------------------
     # Acervo (indexação, listagem e remoção)
@@ -245,6 +259,19 @@ class RAGService:
                 catalog_answer=answer,
             )
 
+        # Com um assunto ou artigo escolhido, a pergunta pode ser genérica
+        # ("resuma os principais achados"): o filtro vale só para a busca geral.
+        if not folder and not source and not resolution.follow_up and self.retriever.off_topic(question):
+            return RAGContext(
+                question=question,
+                resolution=resolution,
+                folder=folder,
+                source=source,
+                history=turns,
+                catalog_answer=OFF_TOPIC_ANSWER,
+                off_topic=True,
+            )
+
         docs = self.retriever.retrieve(resolution.queries, folder, source)
         sources = self.retriever.build_references(
             " ".join(resolution.queries), docs, folder, source
@@ -290,20 +317,33 @@ class RAGService:
             yield ctx.catalog_answer
             return
 
-        # O modelo às vezes não para de escrever, e essa resposta prenderia a
-        # fila inteira. Fechar o stream interrompe a geração no Ollama.
-        size = 0
-        stream = self.answer_chain.stream(self._prompt_inputs(ctx))
+        # O limite também protege a fila: o modelo às vezes não para de escrever.
+        # Fechar o stream interrompe a geração no Ollama, mas só com o modelo
+        # chamado direto: fechar uma cadeia do LangChain (prompt | llm | parser)
+        # lê a geração até o fim antes de retornar.
+        text = ""
+        sent = 0
+        stream = self.llm.stream(self.answer_prompt.format_messages(**self._prompt_inputs(ctx)))
         try:
-            for piece in stream:
-                if not piece:
-                    continue
-                yield piece
-                size += len(piece)
-                if size >= ANSWER_MAX_CHARS:
-                    print(f"[WARNING] Resposta interrompida em {size} caracteres: {ctx.question[:80]}")
-                    yield ANSWER_CUT_NOTICE
-                    return
+            for chunk in stream:
+                text += chunk.content
+                if len(text) > ANSWER_MAX_CHARS:
+                    break
+                near_limit = len(text) >= ANSWER_MAX_CHARS - ANSWER_WHOLE_SENTENCES_CHARS
+                end = _last_sentence_end(text) if near_limit else len(text)
+                if end > sent:
+                    yield text[sent:end]
+                    sent = end
+            else:
+                if text[sent:]:
+                    yield text[sent:]
+                return
+
+            end = _last_sentence_end(text[:ANSWER_MAX_CHARS])
+            if end > sent:
+                yield text[sent:end]
+            else:  # uma única frase passou do limite
+                yield text[sent:ANSWER_MAX_CHARS].rsplit(" ", 1)[0] + "…"
         finally:
             stream.close()
 
@@ -320,7 +360,7 @@ class RAGService:
                 "question_coverage": None,
                 "sentences": 0,
                 "supported_sentences": 0,
-                "level": "acervo",
+                "level": "fora" if ctx.off_topic else "acervo",
             }
         return evaluate_answer(ctx.standalone_question, answer, ctx.docs)
 

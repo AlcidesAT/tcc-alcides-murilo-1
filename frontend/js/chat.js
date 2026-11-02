@@ -234,7 +234,7 @@ async function handleSubmit(e) {
             onToken: (text) => bot.appendText(text),
             onDone: (result) => {
                 bot.finalize(result);
-                remember(q, bot.text(), askedAt);
+                if (result.evaluation?.level !== "fora") remember(q, bot.text(), askedAt);
                 if (result.questions_limit) setQuota(result);
             },
             onError: (err) => bot.fail(err.message),
@@ -432,17 +432,20 @@ function createBotMessage(question) {
                 note.textContent = "Registrada para a pesquisa";
                 footer.appendChild(note);
             }
-            const feedback = buildFeedback({
-                interaction_id: result.interaction_id,
-                question,
-                standalone_question: result.standalone_question ?? meta.standalone_question,
-                answer: rawText,
-                scope,
-                sources,
-                used_memory: result.used_memory ?? meta.used_memory,
-                evaluation: result.evaluation,
-                model: result.model,
-            });
+            const offTopic = result.evaluation?.level === "fora";
+            const feedback =
+                !offTopic &&
+                buildFeedback({
+                    interaction_id: result.interaction_id,
+                    question,
+                    standalone_question: result.standalone_question ?? meta.standalone_question,
+                    answer: rawText,
+                    scope,
+                    sources,
+                    used_memory: result.used_memory ?? meta.used_memory,
+                    evaluation: result.evaluation,
+                    model: result.model,
+                });
             if (feedback) footer.appendChild(feedback);
             content.appendChild(footer);
 

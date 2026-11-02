@@ -61,10 +61,17 @@ REFERENCES_MIN_RATIO = 0.45
 # Fila de geração (ver rag/queue.py):
 #  - LLM_MAX_CONCURRENT: respostas pedidas ao modelo ao mesmo tempo.
 #  - QUEUE_UPDATE_SECONDS: de quanto em quanto a posição na fila é atualizada.
-#  - ANSWER_MAX_CHARS: corta a resposta nesse tamanho (as normais têm até ~3.800).
+#  - ANSWER_MAX_CHARS: tamanho máximo da resposta; quanto menor, mais rápido a fila anda.
 LLM_MAX_CONCURRENT = int(os.getenv("LLM_MAX_CONCURRENT", "2"))
 QUEUE_UPDATE_SECONDS = 3
-ANSWER_MAX_CHARS = 6000
+ANSWER_MAX_CHARS = 500
+
+# Perguntas fora dos artigos (ver HybridRetriever.off_topic). Calibrado com 251
+# artigos e o nomic-embed-text: outro modelo de embeddings pede nova calibragem.
+#  - RELEVANCE_MIN_COVERAGE: peso mínimo dos termos da pergunta num único trecho.
+#  - RELEVANCE_MAX_DISTANCE: distância máxima até o trecho mais próximo.
+RELEVANCE_MIN_COVERAGE = 0.55
+RELEVANCE_MAX_DISTANCE = 0.40
 
 # Memória de pergunta (conversa):
 #  - MEMORY_MAX_TURNS: quantos pares pergunta/resposta anteriores são lembrados.
