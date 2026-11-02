@@ -167,23 +167,27 @@ class HybridRetriever:
                 ranked.append(keyword_docs)
 
         docs = ranked[0] if len(ranked) == 1 else _fuse(ranked)
-        return self._with_closing(docs)[:RETRIEVAL_K]
+        terms = tokenize(" ".join(queries))
+        return self._with_key_chunks(docs, terms)[:RETRIEVAL_K]
 
-    def _with_closing(self, docs: List[Document]) -> List[Document]:
-        """Abre o contexto com a conclusão do artigo mais relevante.
+    def _with_key_chunks(self, docs: List[Document], terms: List[str]) -> List[Document]:
+        """Abre o contexto com a conclusão e os dados do artigo mais relevante.
 
         A busca costuma trazer introduções, que falam do tema, e a resposta fica
-        genérica; a conclusão resume o que o artigo de fato encontrou.
+        genérica: a conclusão diz o que o artigo encontrou, e os dados trazem os
+        valores. Sem eles, pedir detalhes faz o modelo inventar números.
         """
         if not docs:
             return docs
         meta = docs[0].metadata
-        closing = self.lexical.closing_chunk(meta.get("folder"), meta.get("source"))
-        if closing is None:
-            return docs
-        key = _doc_key(closing["meta"])
-        rest = [d for d in docs if _doc_key(d.metadata) != key]
-        return [Document(page_content=closing["text"], metadata=closing["meta"])] + rest
+        folder, source = meta.get("folder"), meta.get("source")
+        key_chunks = [
+            self.lexical.closing_chunk(folder, source),
+            self.lexical.data_chunk(folder, source, terms),
+        ]
+        first = [Document(page_content=ch["text"], metadata=ch["meta"]) for ch in key_chunks if ch]
+        keys = {_doc_key(d.metadata) for d in first}
+        return first + [d for d in docs if _doc_key(d.metadata) not in keys]
 
     def _first_relevant(self, chunks: List[Dict], terms: List[str]) -> Dict:
         """Primeiro trecho do artigo que trata do tema, para citar onde ele começa.

@@ -40,13 +40,14 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 # Recuperação:
-#  - RETRIEVAL_K: quantos trechos são enviados ao modelo. Com 8, o llama3.2:1b se
-#    confundia e chegava a contradizer o artigo; com 4, responde fiel à conclusão.
+#  - RETRIEVAL_K: quantos trechos são enviados ao modelo, contando a conclusão e os
+#    dados do artigo principal. Com 8, o llama3.2:1b se confundia e chegava a
+#    contradizer o artigo; com 4, sobrava pouco espaço para os trechos da busca.
 #  - MMR_FETCH_K: quantos candidatos a busca examina antes de escolher os K finais.
 #  - MMR_LAMBDA: 0 = máxima diversidade, 1 = máxima relevância. 0.7 prioriza a
 #    relevância (mantendo alguma diversidade), o que melhora perguntas cujo
 #    conteúdo está concentrado em um único artigo, mesmo sem filtrar por assunto.
-RETRIEVAL_K = 4
+RETRIEVAL_K = 5
 MMR_FETCH_K = 40
 MMR_LAMBDA = 0.7
 

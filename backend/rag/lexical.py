@@ -55,11 +55,18 @@ _CITATION = re.compile(
 BIBLIOGRAPHY_MIN_DENSITY = 8
 MIN_CONTENT_CHARS = 150
 _AUTHORS_BLOCK = re.compile(r"Sobre o\(s\) autor|Titula[cç][aã]o, v[ií]nculo", re.IGNORECASE)
-_AFFILIATION = re.compile(r"Acad[eê]mic[oa] d[oe]|Graduand[oa] |Docente d|Doutor[a]? em|Mestr[ea] em")
+_AFFILIATION = re.compile(
+    r"Acad[eê]mic[oa] d[oe]|Graduand[oa] |Docente d|Doutor[a]? em|Mestr[ea] em"
+    r"|Engenheir[oa]-agr[oô]nom[oa]|fone:|E-mail:"
+)
 _CONCLUSION = re.compile(
     r"\bCONCLUS[ÃÕO]|\bCONSIDERAÇÕES FINAIS|^\W*(?:\d+\W*)?(?:Conclus(?:ão|ões)|Considerações [Ff]inais)\b",
     re.MULTILINE,
 )
+
+
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+MIN_NUMBERS_FOR_DATA = 3
 
 
 def has_conclusion(text: str) -> bool:
@@ -69,9 +76,10 @@ def has_conclusion(text: str) -> bool:
 def is_noise(text: str) -> bool:
     """Trecho sem conteúdo do artigo: bibliografia ou dados dos autores.
 
-    Um trecho com a conclusão nunca é ruído, mesmo que a bibliografia comece nele.
+    Um trecho com a conclusão ou uma tabela nunca é ruído, mesmo que divida o
+    espaço com a bibliografia ou com os dados dos autores.
     """
-    if has_conclusion(text):
+    if has_conclusion(text) or "Tabela" in text:
         return False
     if len(text.strip()) < MIN_CONTENT_CHARS:  # legendas de figura, restos de página
         return True
@@ -213,6 +221,22 @@ class LexicalIndex:
         if not chunks:
             return None
         return next((ch for ch in reversed(chunks) if has_conclusion(ch["text"])), chunks[-1])
+
+    def data_chunk(
+        self, folder: Optional[str], source: Optional[str], terms: List[str]
+    ) -> Optional[Dict]:
+        """Trecho do artigo com valores que mais trata da pergunta.
+
+        É onde ficam doses e comparações. Vai pelo conteúdo porque poucos artigos
+        têm um título "Resultados" padronizado.
+        """
+        self.refresh()
+        with_data = [
+            ch
+            for ch in self._scoped(folder, source)
+            if len(_NUMBER.findall(ch["text"])) >= MIN_NUMBERS_FOR_DATA and not has_conclusion(ch["text"])
+        ]
+        return max(with_data, key=lambda ch: self.score_chunk(ch, terms), default=None)
 
     def score_chunk(self, chunk: Dict, terms: List[str]) -> float:
         return bm25(chunk["tf"], chunk["len"], terms, self._idf, self._avgdl)

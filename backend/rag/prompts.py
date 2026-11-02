@@ -9,7 +9,9 @@ que não estejam apoiados no contexto. Se os trechos trouxerem apenas informaç�
 parcial, responda com o que for possível. Se os trechos não tratarem do assunto
 da pergunta, responda apenas: "Não encontrei essa informação nos artigos."
 Responda em português do Brasil, em um parágrafo de 4 a 6 frases, explicando os
-principais resultados e dados dos trechos.
+resultados com os detalhes que aparecem nos trechos, como doses e diferenças
+encontradas. Copie os valores exatamente como estão nos trechos e não cite nenhum
+valor que não esteja neles.
 Não comente a pergunta nem cite o número dos trechos.
 
 {extra}Contexto recuperado dos artigos:
