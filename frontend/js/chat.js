@@ -294,52 +294,69 @@ function buildFoundList(sources) {
     return box;
 }
 
-function buildSourceChip(source) {
+const SOURCES_SHOWN = 5;
+
+/** "p. 3" -> "na página 3"; "linha 65" -> "na linha 65". */
+function formatWhere(location) {
+    if (!location || location === "trecho") return "";
+    return `na ${location.replace(/^p\. /, "página ")}`;
+}
+
+/** Uma fonte por linha: artigo, onde o trecho aparece e o próprio trecho. */
+function buildSourceRow(source, text) {
+    const row = document.createElement("div");
+    row.className = "src-row";
+
     const chip = document.createElement("span");
     chip.className = "src-chip";
     chip.setAttribute("data-tip", source.source);
     // O tipo vem antes do nome: nomes longos são cortados no chip.
     const type = FILE_TYPE_LABELS[source.file_type];
     chip.textContent = type ? `${type} · ${source.source}` : source.source;
-    return chip;
-}
 
-/** Fonte com a passagem da resposta que veio dela, em uma linha ao lado. */
-function buildSourceWithQuote(source, passage) {
-    const row = document.createElement("div");
-    row.className = "src-row";
+    const where = document.createElement("span");
+    where.className = "src-where";
+    where.textContent = formatWhere(source.location);
 
     const quote = document.createElement("button");
     quote.type = "button";
     quote.className = "src-quote";
-    quote.textContent = `“${passage.quote}”`;
-    quote.setAttribute("data-tip", `${passage.quote} (${passage.location})`);
-    quote.addEventListener("click", () => openArticle(passage.folder, passage.source, passage.location));
+    quote.textContent = `“${text}”`;
+    quote.setAttribute("data-tip", text);
+    quote.addEventListener("click", () => openArticle(source.folder, source.source, source.location));
 
-    row.append(buildSourceChip(source), quote);
+    row.append(chip, where, quote);
     return row;
 }
 
 /**
- * Fontes da resposta. As que deram origem a uma passagem vêm primeiro, com a
- * linha do trecho; artigo citado que não estava na lista de fontes entra nela.
+ * Fontes da resposta. As que deram origem a uma passagem vêm primeiro, citando
+ * o que a resposta usou; as demais citam onde o tema aparece no artigo.
  */
 function buildSources(sources, passages) {
     const sameArticle = (a, b) => a.source === b.source && a.folder === b.folder;
     const quoted = passages.filter((p, i) => passages.findIndex((o) => sameArticle(o, p)) === i);
     const others = sources.filter((s) => !quoted.some((p) => sameArticle(p, s)));
-    const total = quoted.length + others.length;
+    const rows = [
+        ...quoted.map((p) => [p, p.quote]),
+        ...others.map((s) => [s, s.snippet || ""]),
+    ];
 
     const box = document.createElement("div");
     box.className = "msg-sources";
 
     const lbl = document.createElement("span");
     lbl.className = "lbl";
-    lbl.textContent = total === 1 ? "1 fonte:" : `${total} fontes:`;
+    lbl.textContent = rows.length === 1 ? "1 fonte:" : `${rows.length} fontes:`;
     box.appendChild(lbl);
 
-    quoted.forEach((p) => box.appendChild(buildSourceWithQuote(p, p)));
-    others.forEach((s) => box.appendChild(buildSourceChip(s)));
+    rows.slice(0, SOURCES_SHOWN).forEach(([source, text]) => box.appendChild(buildSourceRow(source, text)));
+    if (rows.length > SOURCES_SHOWN) {
+        const more = document.createElement("span");
+        more.className = "lbl";
+        more.textContent = `e mais ${rows.length - SOURCES_SHOWN} em Referências`;
+        box.appendChild(more);
+    }
     return box;
 }
 

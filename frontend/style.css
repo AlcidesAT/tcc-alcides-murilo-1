@@ -851,7 +851,7 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
     cursor: help;
 }
 
-/* Fonte com a linha do trecho citado */
+/* Fonte: artigo, onde o trecho aparece e o trecho, uma por linha */
 .src-row {
     display: flex;
     align-items: center;
@@ -859,7 +859,14 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
     width: 100%;
     min-width: 0;
 }
-.src-row .src-chip { flex-shrink: 0; max-width: 45%; }
+.src-row .src-chip { flex: 0 0 40%; max-width: 40%; }
+.src-where {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green-deep);
+    white-space: nowrap;
+}
 .src-quote {
     flex: 1;
     min-width: 0;

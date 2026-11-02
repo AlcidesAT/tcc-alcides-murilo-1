@@ -68,7 +68,7 @@ def _passage(sentence: str, doc: Document) -> Dict:
     meta = doc.metadata
     source = meta.get("source", "?")
     # Tira as marcas do Markdown e o cabeçalho "ARTIGO" dos arquivos convertidos.
-    quote = " ".join(re.sub(r"[*#]+|\bARTIGO\b", " ", sentence).split())
+    quote = " ".join(re.sub(r"[*#_]+|\bARTIGO\b", " ", sentence).split())
     if len(quote) > PASSAGE_MAX_CHARS:
         quote = quote[:PASSAGE_MAX_CHARS].rsplit(" ", 1)[0] + "…"
     return {

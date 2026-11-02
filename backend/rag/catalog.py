@@ -32,14 +32,20 @@ _CORPUS_NOUNS = {
 }
 # Pedidos de listagem ou de existência.
 _LISTING = {
-    "quais", "que", "liste", "listar", "lista", "diga", "cite", "mostre",
+    "quais", "que", "liste", "listar", "lista", "diga", "cite", "mostre", "mostra",
     "existem", "existe", "tem", "temos", "ha", "possui", "quantos", "quantas",
+    "traga", "traz", "busque", "procure", "encontre", "indique", "recomende", "quero",
 }
 # "da base", "na base", "do acervo"…: referência explícita ao acervo.
 _BASE_PREFIX = {"da", "na", "nessa", "nesta", "dessa", "desta", "a"}
-_FILLER = {"o", "a", "os", "as", "me", "sao", "e", "todos", "todas", "outros", "mais"}
+_FILLER = {
+    "o", "a", "os", "as", "me", "sao", "e", "todos", "todas", "outros", "outras", "mais",
+    "diferentes", "alguns", "algumas", "uns", "umas", "novos", "novas",
+}
+# Depois de um substantivo de acervo no início: "artigos sobre milho".
+_TOPIC_LINK = {"sobre", "de", "da", "do", "com", "que"}
 
-_NON_TOPIC = STOPWORDS | _CORPUS_NOUNS | _LISTING | {
+_NON_TOPIC = STOPWORDS | _CORPUS_NOUNS | _LISTING | _FILLER | {
     "base", "acervo", "sistema", "aqui", "disponiveis", "disponivel", "falam",
     "sobre", "area", "areas", "tema", "relacionam", "envolvem", "tratando",
     # Verbos de pesquisa ("quais estudos avaliaram a alface?"): não são o tema.
@@ -56,6 +62,8 @@ def is_catalog_question(question: str) -> bool:
     if "acervo" in ws:
         return True
     if any(a in _BASE_PREFIX and b == "base" for a, b in zip(ws, ws[1:])) and set(ws) & _LISTING:
+        return True
+    if len(ws) > 2 and ws[0] in _CORPUS_NOUNS and ws[1] in _TOPIC_LINK:
         return True
     # Pedido de listagem seguido de perto por um substantivo de acervo,
     # pulando palavras de ligação: "quais (são os) artigos", "me diga assuntos".

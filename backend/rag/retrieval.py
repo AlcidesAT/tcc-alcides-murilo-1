@@ -5,6 +5,7 @@ Busca híbrida (semântica + palavra-chave) dos trechos enviados ao modelo e
 seleção dos artigos exibidos como referências ao usuário.
 """
 
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -48,11 +49,12 @@ def scope_label(folder: Optional[str], source: Optional[str]) -> str:
 
 def ref_entry(text: str, meta: dict) -> Dict:
     source = meta.get("source", "?")
+    clean = " ".join(re.sub(r"[*#_]+|\bARTIGO\b", " ", text).split())  # marcas do Markdown
     return {
         "folder": meta.get("folder", "?"),
         "source": source,
         "location": location_label(meta),
-        "snippet": text[:240].strip().replace("\n", " ") + "…",
+        "snippet": clean[:240] + "…",
         "file_type": Path(source).suffix.lower(),
     }
 
