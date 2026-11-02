@@ -342,7 +342,8 @@ class RAGService:
             end = _last_sentence_end(text[:ANSWER_MAX_CHARS])
             if end > sent:
                 yield text[sent:end]
-            else:  # uma única frase passou do limite
+            elif sent < ANSWER_MAX_CHARS - ANSWER_WHOLE_SENTENCES_CHARS:
+                # Nenhuma frase terminou perto do limite (ex.: lista sem pontos).
                 yield text[sent:ANSWER_MAX_CHARS].rsplit(" ", 1)[0] + "…"
         finally:
             stream.close()
