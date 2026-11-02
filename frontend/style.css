@@ -851,6 +851,33 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
     cursor: help;
 }
 
+/* Fonte com a linha do trecho citado */
+.src-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+.src-row .src-chip { flex-shrink: 0; max-width: 45%; }
+.src-quote {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-style: italic;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.src-quote:hover { color: var(--green-deep); text-decoration: underline; }
+
 /* Espera pela resposta: posição na fila e trechos encontrados */
 .queue-status {
     font-size: 0.85rem;

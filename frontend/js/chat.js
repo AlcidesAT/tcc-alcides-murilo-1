@@ -266,14 +266,14 @@ function formatEta(seconds) {
     return seconds < 60 ? " · menos de 1 min" : ` · cerca de ${Math.round(seconds / 60)} min`;
 }
 
-/** Trechos dos artigos em cartões que abrem o leitor na posição citada. */
-function buildFoundList(heading, sources, textOf = (s) => s.snippet || "") {
+/** Trechos encontrados, para ler enquanto a resposta não fica pronta. */
+function buildFoundList(sources) {
     const box = document.createElement("div");
     box.className = "found-list";
 
     const title = document.createElement("div");
     title.className = "found-title";
-    title.textContent = heading;
+    title.textContent = "Enquanto a resposta é escrita, veja o que foi encontrado nos artigos:";
     box.appendChild(title);
 
     sources.forEach((s) => {
@@ -287,10 +287,59 @@ function buildFoundList(heading, sources, textOf = (s) => s.snippet || "") {
         name.textContent = `${s.source} · ${s.location || "trecho"}`;
         const snippet = document.createElement("span");
         snippet.className = "found-snippet";
-        snippet.textContent = textOf(s);
+        snippet.textContent = s.snippet || "";
         item.append(name, snippet);
         box.appendChild(item);
     });
+    return box;
+}
+
+function buildSourceChip(source) {
+    const chip = document.createElement("span");
+    chip.className = "src-chip";
+    chip.setAttribute("data-tip", source.source);
+    // O tipo vem antes do nome: nomes longos são cortados no chip.
+    const type = FILE_TYPE_LABELS[source.file_type];
+    chip.textContent = type ? `${type} · ${source.source}` : source.source;
+    return chip;
+}
+
+/** Fonte com a passagem da resposta que veio dela, em uma linha ao lado. */
+function buildSourceWithQuote(source, passage) {
+    const row = document.createElement("div");
+    row.className = "src-row";
+
+    const quote = document.createElement("button");
+    quote.type = "button";
+    quote.className = "src-quote";
+    quote.textContent = `“${passage.quote}”`;
+    quote.setAttribute("data-tip", `${passage.quote} (${passage.location})`);
+    quote.addEventListener("click", () => openArticle(passage.folder, passage.source, passage.location));
+
+    row.append(buildSourceChip(source), quote);
+    return row;
+}
+
+/**
+ * Fontes da resposta. As que deram origem a uma passagem vêm primeiro, com a
+ * linha do trecho; artigo citado que não estava na lista de fontes entra nela.
+ */
+function buildSources(sources, passages) {
+    const sameArticle = (a, b) => a.source === b.source && a.folder === b.folder;
+    const quoted = passages.filter((p, i) => passages.findIndex((o) => sameArticle(o, p)) === i);
+    const others = sources.filter((s) => !quoted.some((p) => sameArticle(p, s)));
+    const total = quoted.length + others.length;
+
+    const box = document.createElement("div");
+    box.className = "msg-sources";
+
+    const lbl = document.createElement("span");
+    lbl.className = "lbl";
+    lbl.textContent = total === 1 ? "1 fonte:" : `${total} fontes:`;
+    box.appendChild(lbl);
+
+    quoted.forEach((p) => box.appendChild(buildSourceWithQuote(p, p)));
+    others.forEach((s) => box.appendChild(buildSourceChip(s)));
     return box;
 }
 
@@ -359,11 +408,7 @@ function createBotMessage(question) {
         /** Trechos da busca, disponíveis antes de o modelo escrever a resposta. */
         showSources(sources) {
             setReferences(sources, "Nenhum trecho encontrado até aqui.");
-            if (sources?.length) {
-                waiting.appendChild(
-                    buildFoundList("Enquanto a resposta é escrita, veja o que foi encontrado nos artigos:", sources),
-                );
-            }
+            if (sources?.length) waiting.appendChild(buildFoundList(sources));
             scrollToBottom();
         },
         setQueue({ position, eta_seconds }) {
@@ -406,34 +451,8 @@ function createBotMessage(question) {
                 tag.textContent = scopeText(scope);
                 content.insertBefore(tag, body);
             }
-            if (result.passages?.length) {
-                content.appendChild(
-                    buildFoundList(
-                        "De onde vieram as informações (passagens mais parecidas nos artigos):",
-                        result.passages,
-                        (p) => `“${p.quote}”`,
-                    ),
-                );
-            }
-            if (sources && sources.length) {
-                const box = document.createElement("div");
-                box.className = "msg-sources";
-
-                const lbl = document.createElement("span");
-                lbl.className = "lbl";
-                lbl.textContent = "Artigos relacionados:";
-                box.appendChild(lbl);
-
-                sources.forEach((s) => {
-                    const chip = document.createElement("span");
-                    chip.className = "src-chip";
-                    chip.setAttribute("data-tip", s.source);
-                    // O tipo vem antes do nome: nomes longos são cortados no chip.
-                    const type = FILE_TYPE_LABELS[s.file_type];
-                    chip.textContent = type ? `${type} · ${s.source}` : s.source;
-                    box.appendChild(chip);
-                });
-                content.appendChild(box);
+            if (sources?.length || result.passages?.length) {
+                content.appendChild(buildSources(sources || [], result.passages || []));
             }
 
             const footer = document.createElement("div");
