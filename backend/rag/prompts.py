@@ -8,10 +8,10 @@ Você pode sintetizar e relacionar as informações dos trechos, sem inventar da
 que não estejam apoiados no contexto. Se os trechos trouxerem apenas informação
 parcial, responda com o que for possível. Se os trechos não tratarem do assunto
 da pergunta, responda apenas: "Não encontrei essa informação nos artigos."
-Responda em português do Brasil, em um parágrafo de 4 a 6 frases, explicando os
-resultados com os detalhes que aparecem nos trechos, como doses e diferenças
-encontradas. Copie os valores exatamente como estão nos trechos e não cite nenhum
-valor que não esteja neles.
+Responda em português do Brasil, em um único parágrafo de 6 a 8 frases, explicando
+o tema e depois os resultados e as conclusões, com os detalhes que aparecem nos
+trechos. Copie os valores exatamente como estão nos trechos e não cite nenhum valor
+que não esteja neles. Não repita frases nem escreva uma lista de referências.
 Não comente a pergunta nem cite o número dos trechos.
 
 {extra}Contexto recuperado dos artigos:
