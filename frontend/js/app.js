@@ -18,6 +18,7 @@ import { initUpload, updateFolderSelector } from "./upload.js";
 import { initChat, updateScopeSelectors } from "./chat.js";
 import { initEvaluation } from "./evaluation.js";
 import { initSurvey } from "./survey.js";
+import { initHelp, renderHelp } from "./help.js";
 
 initAuth();
 initTooltips();
@@ -27,11 +28,13 @@ initUpload();
 initChat();
 initEvaluation();
 initSurvey();
+initHelp();
 
 subscribe((state) => {
     renderFolders(state);
     updateFolderSelector(state);
     updateScopeSelectors(state);
+    renderHelp(state);
 });
 
 loadFolders();

@@ -965,6 +965,53 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .send-btn:active:not(:disabled) { transform: scale(0.95); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* Expansivo "Como perguntar" */
+.ask-help {
+    margin: 0 6px 8px;
+    font-size: 0.8rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+.ask-help summary {
+    padding: 7px 12px;
+    font-weight: 600;
+    color: var(--green-deep);
+    cursor: pointer;
+}
+.ask-help-body {
+    max-height: min(46vh, 380px);
+    overflow-y: auto;
+    padding: 2px 14px 12px;
+    line-height: 1.45;
+}
+.ask-help h4 {
+    margin: 10px 0 4px;
+    font-size: 0.82rem;
+    color: var(--green-deep);
+}
+.ask-help p { margin: 0 0 6px; }
+.ask-help ul { margin: 0 0 6px; padding-left: 18px; }
+.help-topic { margin-top: 10px; }
+.help-topic-name { font-weight: 700; }
+.help-topic-themes { margin-bottom: 4px; color: var(--muted); }
+.help-example {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 5px 10px;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--green-deep);
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.help-example:hover { border-color: var(--green); }
+
 .composer[hidden] { display: none; }
 .question-quota {
     margin: 0 6px 6px;

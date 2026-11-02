@@ -30,7 +30,7 @@ const FOLDER_DISPLAY_NAMES = {
     geral: "Geral",
 };
 
-function displayFolderName(slug) {
+export function displayFolderName(slug) {
     return (
         FOLDER_DISPLAY_NAMES[slug] ||
         slug

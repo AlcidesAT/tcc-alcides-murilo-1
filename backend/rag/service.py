@@ -49,8 +49,8 @@ from rag.prompts import ANSWER_PROMPT, HISTORY_BLOCK
 from rag.retrieval import HybridRetriever, location_label, scope_label
 
 OFF_TOPIC_ANSWER = (
-    "Não encontrei esse assunto nos artigos do acervo. Tente perguntar com outras "
-    "palavras ou escolha um assunto ou artigo no seletor do topo."
+    "Não encontrei esse assunto nos artigos do acervo. Veja abaixo, em “Como "
+    "perguntar”, os temas disponíveis e tente com outras palavras."
 )
 
 # Perto do limite, a resposta só é liberada em frases inteiras, para o corte não

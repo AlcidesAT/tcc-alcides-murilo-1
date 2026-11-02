@@ -136,10 +136,10 @@
                             <h2>Em que posso ajudar?</h2>
                             <p>Pergunte em linguagem natural sobre seus artigos científicos indexados.</p>
                             <div class="suggestions">
-                                <button class="suggestion">Resuma os principais achados</button>
-                                <button class="suggestion">Qual é a metodologia utilizada?</button>
-                                <button class="suggestion">Quais são as conclusões do artigo?</button>
-                                <button class="suggestion">Liste as referências mais citadas</button>
+                                <button class="suggestion">Qual o efeito do nitrogênio na cultura do milho?</button>
+                                <button class="suggestion">A castração química é constitucional?</button>
+                                <button class="suggestion">Quais fatores causam estresse nos profissionais de enfermagem?</button>
+                                <button class="suggestion">Como a inteligência artificial é usada na arquitetura?</button>
                             </div>
                         </div>
 
@@ -147,6 +147,25 @@
                     </div>
 
                     <div class="composer-wrap">
+                        <!-- Orientações: o que e como perguntar e temas do acervo -->
+                        <details class="ask-help" id="ask-help">
+                            <summary>Como perguntar e quais temas existem</summary>
+                            <div class="ask-help-body">
+                                <h4>O que perguntar</h4>
+                                <p>O sistema responde apenas com o que está nos artigos científicos do acervo. Pergunte sobre resultados, métodos, conclusões ou conceitos tratados neles. Assuntos de fora, como dicas gerais, notícias ou curiosidades, não têm resposta.</p>
+                                <h4>Como perguntar</h4>
+                                <ul>
+                                    <li>Diga o assunto e o que você quer saber. Em vez de “dicas de saúde”, pergunte “Como o consumo de açúcar favorece as cáries?”.</li>
+                                    <li>Use as palavras do tema, como o nome da cultura, da doença, da lei ou da técnica.</li>
+                                    <li>Para um artigo específico, escolha o assunto e o artigo em “Pesquisar em”, no topo.</li>
+                                    <li>Depois de uma resposta, você pode continuar o assunto: “E qual foi a metodologia?”.</li>
+                                    <li>Se a pergunta for recusada, tente outras palavras. A tentativa não conta como pergunta feita.</li>
+                                </ul>
+                                <h4>Temas do acervo</h4>
+                                <p>Clique em um exemplo para usá-lo como pergunta.</p>
+                                <div id="help-topics"></div>
+                            </div>
+                        </details>
                         <!-- Memória de pergunta: perguntas anteriores consideradas -->
                         <div class="memory-bar" id="memory-bar" hidden>
                             <span class="memory-ic" aria-hidden="true">↻</span>

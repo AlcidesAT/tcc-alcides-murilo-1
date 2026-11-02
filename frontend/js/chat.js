@@ -46,6 +46,7 @@ const appEl = document.getElementById("app");
 const quotaEl = document.getElementById("question-quota");
 const quotaDoneEl = document.getElementById("quota-done");
 const quotaDoneText = document.getElementById("quota-done-text");
+const helpEl = document.getElementById("ask-help");
 
 let documentsByFolder = {};
 
@@ -93,6 +94,7 @@ function setQuota(quota) {
     quotaEl.hidden = !limit || finished;
     quotaEl.textContent = `Pergunta ${used + 1} de ${limit}`;
     askForm.hidden = finished;
+    helpEl.hidden = finished;
     quotaDoneEl.hidden = !finished;
     quotaDoneText.textContent = `Você fez as ${limit} perguntas. Falta só o questionário de avaliação.`;
 }
@@ -433,6 +435,7 @@ function createBotMessage(question) {
                 footer.appendChild(note);
             }
             const offTopic = result.evaluation?.level === "fora";
+            if (offTopic) helpEl.open = true;
             const feedback =
                 !offTopic &&
                 buildFeedback({
