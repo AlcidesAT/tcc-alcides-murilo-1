@@ -35,7 +35,7 @@ from config import (
     VECTORSTORE_DIR,
 )
 from document_processor import load_and_split
-from rag.evaluation import evaluate_answer
+from rag.evaluation import evaluate_answer, trace_passages
 from rag.lexical import LexicalIndex
 from rag.catalog import answer_catalog, is_catalog_question
 from rag.memory import (
@@ -370,6 +370,7 @@ class RAGService:
         return {
             "answer": answer,
             "sources": ctx.sources,
+            "passages": trace_passages(answer, ctx.docs),
             "scope": ctx.scope,
             "evaluation": self.evaluate(ctx, answer),
             "model": self.model_name,

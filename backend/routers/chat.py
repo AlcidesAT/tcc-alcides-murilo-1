@@ -146,7 +146,7 @@ async def ask_stream(
       {"type":"queue","position":...,"eta_seconds":...}  (enquanto espera a vez)
       {"type":"meta", "standalone_question", "used_memory", "memory_turns", ...}
       {"type":"token","text":...}  (vários, durante a geração)
-      {"type":"done","sources":[...],"scope":...,"evaluation":{...},"model":...,
+      {"type":"done","sources":[...],"passages":[...],"scope":...,"evaluation":{...},"model":...,
        "interaction_id":..., "collected":..., "questions_used":..., "questions_limit":...}
     Erros durante a geração viram {"type":"error","detail":...}. Com o login da
     turma, a pergunta é registrada antes do evento "done" (que leva o id).

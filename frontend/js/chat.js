@@ -266,14 +266,14 @@ function formatEta(seconds) {
     return seconds < 60 ? " · menos de 1 min" : ` · cerca de ${Math.round(seconds / 60)} min`;
 }
 
-/** Trechos encontrados, para ler enquanto a resposta não fica pronta. */
-function buildFoundList(sources) {
+/** Trechos dos artigos em cartões que abrem o leitor na posição citada. */
+function buildFoundList(heading, sources, textOf = (s) => s.snippet || "") {
     const box = document.createElement("div");
     box.className = "found-list";
 
     const title = document.createElement("div");
     title.className = "found-title";
-    title.textContent = "Enquanto a resposta é escrita, veja o que foi encontrado nos artigos:";
+    title.textContent = heading;
     box.appendChild(title);
 
     sources.forEach((s) => {
@@ -287,7 +287,7 @@ function buildFoundList(sources) {
         name.textContent = `${s.source} · ${s.location || "trecho"}`;
         const snippet = document.createElement("span");
         snippet.className = "found-snippet";
-        snippet.textContent = s.snippet || "";
+        snippet.textContent = textOf(s);
         item.append(name, snippet);
         box.appendChild(item);
     });
@@ -359,7 +359,11 @@ function createBotMessage(question) {
         /** Trechos da busca, disponíveis antes de o modelo escrever a resposta. */
         showSources(sources) {
             setReferences(sources, "Nenhum trecho encontrado até aqui.");
-            if (sources?.length) waiting.appendChild(buildFoundList(sources));
+            if (sources?.length) {
+                waiting.appendChild(
+                    buildFoundList("Enquanto a resposta é escrita, veja o que foi encontrado nos artigos:", sources),
+                );
+            }
             scrollToBottom();
         },
         setQueue({ position, eta_seconds }) {
@@ -402,14 +406,22 @@ function createBotMessage(question) {
                 tag.textContent = scopeText(scope);
                 content.insertBefore(tag, body);
             }
+            if (result.passages?.length) {
+                content.appendChild(
+                    buildFoundList(
+                        "De onde vieram as informações (passagens mais parecidas nos artigos):",
+                        result.passages,
+                        (p) => `“${p.quote}”`,
+                    ),
+                );
+            }
             if (sources && sources.length) {
                 const box = document.createElement("div");
                 box.className = "msg-sources";
 
                 const lbl = document.createElement("span");
                 lbl.className = "lbl";
-                lbl.textContent =
-                    sources.length === 1 ? "1 fonte:" : `${sources.length} fontes:`;
+                lbl.textContent = "Artigos relacionados:";
                 box.appendChild(lbl);
 
                 sources.forEach((s) => {

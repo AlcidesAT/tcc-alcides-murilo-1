@@ -96,6 +96,16 @@ EVAL_MIN_SENTENCE_TERMS = 3
 EVAL_LEVEL_HIGH = 0.75
 EVAL_LEVEL_MEDIUM = 0.5
 
+# Passagens exibidas com a resposta (ver rag/evaluation.py):
+#  - PASSAGES_MAX: quantas passagens mostrar.
+#  - PASSAGE_MIN_SUPPORT: fração mínima dos termos da frase da resposta que
+#    precisa aparecer na passagem. Abaixo disso, a frase fica sem passagem.
+#  - PASSAGE_MIN_CHARS / PASSAGE_MAX_CHARS: tamanho da passagem citada.
+PASSAGES_MAX = 3
+PASSAGE_MIN_SUPPORT = 0.5
+PASSAGE_MIN_CHARS = 40
+PASSAGE_MAX_CHARS = 280
+
 COLLECTION_NAME = "artigos_cientificos"
 
 SUPPORTED_EXTENSIONS = {".pdf", ".md", ".txt"}

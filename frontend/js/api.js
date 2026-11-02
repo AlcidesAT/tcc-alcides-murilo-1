@@ -182,7 +182,7 @@ export async function ask(question, folder, source, history = []) {
  *   onQueue(status)  — enquanto espera a vez: { position, eta_seconds }
  *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
  *   onToken(text)    — a cada pedaço de texto gerado
- *   onDone(result)   — ao final: { sources, scope, evaluation, model,
+ *   onDone(result)   — ao final: { sources, passages, scope, evaluation, model,
  *                      interaction_id, collected, questions_used,
  *                      questions_limit, ... }
  *   onError(error)   — em caso de erro durante a geração

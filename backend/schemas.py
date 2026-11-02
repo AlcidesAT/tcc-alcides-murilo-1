@@ -25,6 +25,7 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     sources: list
+    passages: list = Field(default_factory=list)
     scope: str
     evaluation: dict
     model: str
