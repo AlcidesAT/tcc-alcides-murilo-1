@@ -69,7 +69,7 @@ REFERENCE_MIN_CHUNK_RATIO = 0.7
 #  - ANSWER_MAX_CHARS: tamanho máximo da resposta; quanto menor, mais rápido a fila anda.
 LLM_MAX_CONCURRENT = int(os.getenv("LLM_MAX_CONCURRENT", "2"))
 QUEUE_UPDATE_SECONDS = 3
-ANSWER_MAX_CHARS = 1200
+ANSWER_MAX_CHARS = 900
 
 # Perguntas fora dos artigos (ver HybridRetriever.off_topic). Calibrado com 251
 # artigos e o nomic-embed-text: outro modelo de embeddings pede nova calibragem.
