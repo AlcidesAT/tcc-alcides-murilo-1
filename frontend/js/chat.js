@@ -47,6 +47,7 @@ const quotaEl = document.getElementById("question-quota");
 const quotaDoneEl = document.getElementById("quota-done");
 const quotaDoneText = document.getElementById("quota-done-text");
 const helpEl = document.getElementById("ask-help");
+const modelsEl = document.getElementById("question-models");
 
 let documentsByFolder = {};
 
@@ -68,14 +69,6 @@ export function initChat() {
     collapseBtn.addEventListener("click", () => appEl.classList.add("sidebar-hidden"));
     openSidebarBtn.addEventListener("click", () => appEl.classList.remove("sidebar-hidden"));
 
-    document.querySelectorAll(".suggestion").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            questionEl.value = btn.textContent;
-            autoResize();
-            questionEl.focus();
-        });
-    });
-
     document.getElementById("quota-survey").addEventListener("click", openSurvey);
     document.addEventListener("rolechange", refreshQuota);
     refreshQuota(); // o login salvo é lido antes de este módulo iniciar
@@ -95,6 +88,7 @@ function setQuota(quota) {
     quotaEl.textContent = `Pergunta ${used + 1} de ${limit}`;
     askForm.hidden = finished;
     helpEl.hidden = finished;
+    modelsEl.hidden = finished;
     quotaDoneEl.hidden = !finished;
     quotaDoneText.textContent = `Você fez as ${limit} perguntas. Falta só o questionário de avaliação.`;
 }

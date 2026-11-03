@@ -134,13 +134,7 @@
                         <div class="hero" id="empty-state">
                             <div class="hero-logo">◆</div>
                             <h2>Em que posso ajudar?</h2>
-                            <p>Pergunte em linguagem natural sobre seus artigos científicos indexados.</p>
-                            <div class="suggestions">
-                                <button class="suggestion">Qual o efeito do nitrogênio na cultura do milho?</button>
-                                <button class="suggestion">A castração química é constitucional?</button>
-                                <button class="suggestion">Quais fatores causam estresse nos profissionais de enfermagem?</button>
-                                <button class="suggestion">Como a inteligência artificial é usada na arquitetura?</button>
-                            </div>
+                            <p>Pergunte em linguagem natural sobre os artigos científicos do acervo, ou escolha um dos modelos de pergunta logo abaixo.</p>
                         </div>
 
                         <div id="messages" class="messages"></div>
@@ -155,7 +149,7 @@
                                 <p>O sistema responde apenas com o que está nos artigos científicos do acervo. Pergunte sobre resultados, métodos, conclusões ou conceitos tratados neles. Assuntos de fora, como dicas gerais, notícias ou curiosidades, não têm resposta.</p>
                                 <h4>Como perguntar</h4>
                                 <ul>
-                                    <li>Diga o assunto e o que você quer saber. Em vez de “dicas de saúde”, pergunte “Como o consumo de açúcar favorece as cáries?”.</li>
+                                    <li>Diga o assunto e o que você quer saber. Em vez de “dicas de saúde”, pergunte “Como o consumo de açúcar favorece o surgimento de cáries?”.</li>
                                     <li>Use as palavras do tema, como o nome da cultura, da doença, da lei ou da técnica.</li>
                                     <li>Para um artigo específico, escolha o assunto e o artigo em “Pesquisar em”, no topo.</li>
                                     <li>Depois de uma resposta, você pode continuar o assunto: “E qual foi a metodologia?”.</li>
@@ -177,6 +171,12 @@
                         <div class="quota-done" id="quota-done" hidden>
                             <span id="quota-done-text"></span>
                             <button type="button" class="btn-solid" id="quota-survey">Responder ao questionário</button>
+                        </div>
+                        <!-- Modelos de pergunta: clicar preenche o campo, sem enviar (ver help.js) -->
+                        <div class="question-models" id="question-models">
+                            <span class="question-models-label">Modelos de pergunta:</span>
+                            <div class="question-models-list" id="question-models-list"></div>
+                            <button type="button" class="question-models-more" id="question-models-more" title="Mostrar outros modelos">↻ Outros</button>
                         </div>
                         <form id="ask-form" class="composer">
                             <textarea
