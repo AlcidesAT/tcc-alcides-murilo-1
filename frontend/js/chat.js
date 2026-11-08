@@ -7,8 +7,9 @@
  *  - Renderizar mensagens em linhas (usuário à direita em balão, assistente
  *    à esquerda com avatar e texto pleno), indicador de digitação e fontes
  *  - Estado inicial (hero), "Nova conversa" e recolher/abrir a sidebar
- *  - Memória de pergunta: envia o histórico da conversa e mostra quando a
- *    pergunta foi reinterpretada com base nele (ver memory.js)
+ *  - Memória de pergunta: envia o histórico da conversa em segundo plano e
+ *    marca com um "↻" discreto quando a pergunta foi entendida com base nele
+ *    (ver memory.js)
  *  - Avaliação: selo de confiança automático e nota do usuário (feedback.js)
  *  - Limite do login da turma: "Pergunta 2 de 3" e, ao final, o caminho para
  *    o questionário no lugar do campo de pergunta
@@ -18,14 +19,7 @@
 import * as api from "./api.js";
 import { escapeHtml, renderMarkdown } from "./utils.js";
 import { openArticle } from "./reader.js";
-import {
-    clearMemory,
-    getHistory,
-    initMemory,
-    memoryEpoch,
-    remember,
-    setMaxTurns,
-} from "./memory.js";
+import { clearMemory, getHistory, memoryEpoch, remember } from "./memory.js";
 import { buildFeedback, buildQualityBadge } from "./feedback.js";
 import { openSurvey } from "./survey.js";
 
@@ -64,7 +58,6 @@ export function initChat() {
     questionEl.addEventListener("input", autoResize);
 
     newChatBtn.addEventListener("click", newConversation);
-    initMemory({ onForget: appendMemoryDivider });
 
     collapseBtn.addEventListener("click", () => appEl.classList.add("sidebar-hidden"));
     openSidebarBtn.addEventListener("click", () => appEl.classList.remove("sidebar-hidden"));
@@ -106,16 +99,6 @@ function newConversation() {
     setReferences(null, "As fontes que embasarem a resposta aparecerão aqui.");
     autoResize();
     questionEl.focus();
-}
-
-/** Marca na conversa o ponto em que a memória foi esquecida. */
-function appendMemoryDivider() {
-    if (!messagesEl.children.length) return;
-    const div = document.createElement("div");
-    div.className = "memory-divider";
-    div.textContent = "Memória esquecida — as próximas perguntas não consideram as anteriores";
-    messagesEl.appendChild(div);
-    scrollToBottom();
 }
 
 const FILE_TYPE_LABELS = { ".pdf": "PDF", ".md": "Markdown", ".txt": "TXT" };
@@ -431,26 +414,25 @@ function createBotMessage(question) {
             body.innerHTML = renderMarkdown(rawText);
             scrollToBottom();
         },
-        /** Antes da geração: mostra se a memória ajudou a entender a pergunta. */
+        /**
+         * Antes da geração: se a memória ajudou a entender a pergunta, deixa só
+         * um "↻" discreto; o detalhe fica no balão ao passar o mouse.
+         */
         setMeta(m) {
             meta = m || {};
             status.textContent = "Escrevendo a resposta…";
-            setMaxTurns(meta.memory_max_turns);
             if (!meta.used_memory) return;
 
-            const tag = document.createElement("div");
+            const tag = document.createElement("span");
             tag.className = "memory-tag";
+            tag.textContent = "↻";
+            tag.setAttribute("aria-label", "Pergunta entendida junto com a conversa");
             const rewritten = meta.standalone_question;
-            if (meta.memory_mode === "rewrite" && normalize(rewritten) !== normalize(question)) {
-                tag.textContent = `↻ Pergunta de acompanhamento · buscado como: “${rewritten}”`;
-            } else {
-                tag.textContent = "↻ Pergunta de acompanhamento: buscada junto com a pergunta anterior";
-            }
-            tag.setAttribute(
-                "data-tip",
-                "Esta pergunta depende da conversa. A memória considerou as perguntas " +
-                    "anteriores para buscar os trechos nos artigos.",
-            );
+            const tip =
+                meta.memory_mode === "rewrite" && normalize(rewritten) !== normalize(question)
+                    ? `Entendida junto com a conversa, como: “${rewritten}”`
+                    : "Entendida junto com as perguntas anteriores da conversa";
+            tag.setAttribute("data-tip", tip);
             content.prepend(tag);
         },
         finalize(result) {

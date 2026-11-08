@@ -232,7 +232,7 @@ A interface envia, junto de cada pergunta, os últimos pares pergunta/resposta (
 
 Perguntas como "quais artigos da base falam de tecnologia?" ou "me diga os assuntos relacionados à saúde" pedem a **lista** de artigos, que o modelo não enxerga quando recebe só os trechos recuperados. Quando a pergunta combina um termo de acervo (artigos, assuntos, estudos, base…) com um pedido de listagem (quais, liste, diga, existem…), o prompt ganha o catálogo de títulos por assunto, respeitando o filtro de escopo ([backend/rag/catalog.py](backend/rag/catalog.py)).
 
-Na interface, a faixa acima do campo de pergunta mostra quantas perguntas anteriores estão sendo consideradas, e o botão **"Esquecer"** limpa a memória sem apagar a conversa ("Nova conversa" também limpa). Quando a memória é usada, a resposta indica que se trata de uma pergunta de acompanhamento e mostra como ela foi buscada. Parâmetros: `MEMORY_MAX_TURNS` e `MEMORY_ANSWER_CHARS` em [backend/config.py](backend/config.py).
+A memória funciona em segundo plano, sem opção para o usuário: não há faixa nem botão na tela, e "Nova conversa" a limpa. Quando ela é usada, a resposta ganha só um **↻** discreto no canto; ao passar o mouse, um balão mostra como a pergunta foi entendida. Parâmetros: `MEMORY_MAX_TURNS` e `MEMORY_ANSWER_CHARS` em [backend/config.py](backend/config.py).
 
 ## Avaliação da precisão das respostas
 

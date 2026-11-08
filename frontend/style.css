@@ -1170,48 +1170,16 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .btn-solid:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ========================= Memória de pergunta ======================== */
-.memory-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 6px 8px;
-    padding: 6px 8px 6px 12px;
-    font-size: 0.78rem;
-    color: var(--green-deep);
-    background: var(--elevated);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-}
-.memory-bar[hidden] { display: none; }
-.memory-ic { font-weight: 700; }
-#memory-text { flex: 1; min-width: 0; }
-.memory-clear {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 2px 10px;
-    font-size: 0.72rem;
-}
-.memory-clear:hover { background: var(--hover); color: var(--text); }
-
+/* Marca discreta: a memória trabalha em segundo plano, sem opção na tela. */
 .memory-tag {
-    font-size: 0.75rem;
+    float: right;
+    margin-left: 6px;
+    font-size: 0.78rem;
     color: var(--muted);
-    font-style: italic;
-    margin-bottom: 6px;
+    opacity: 0.6;
     cursor: help;
 }
-
-.memory-divider {
-    align-self: center;
-    font-size: 0.72rem;
-    color: var(--muted);
-    border-top: 1px dashed var(--border);
-    padding-top: 6px;
-    width: 100%;
-    text-align: center;
-}
+.memory-tag:hover { opacity: 1; }
 
 /* ===================== Avaliação da precisão (chat) =================== */
 .msg-footer {
