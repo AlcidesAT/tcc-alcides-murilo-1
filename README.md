@@ -22,7 +22,7 @@ FastAPI (backend/main.py)  — só monta o app
         v
 rag/service.py (RAGService)
    1. memory.py      resolve perguntas de acompanhamento com o histórico
-   2. retrieval.py   busca híbrida: MMR (Chroma) + BM25 (lexical.py), fusão RRF
+   2. retrieval.py   busca híbrida: MMR (Chroma) + BM25 (lexical.py), listas intercaladas
    3. LLM            resposta com histórico + trechos  (Ollama via LangChain)
    4. evaluation.py  fundamentação da resposta nos trechos
         |
@@ -225,7 +225,7 @@ A interface envia, junto de cada pergunta, os últimos pares pergunta/resposta (
 
 1. **Detecção de acompanhamento** — uma heurística identifica perguntas que dependem da conversa: começam com "E…", têm pronomes/demonstrativos ("nelas", "esse problema"), referências genéricas com artigo ("os dados", "a metodologia") ou quase nenhum termo específico. Perguntas completas seguem intactas, sem custo extra.
 2. **Reescrita** — o LLM reescreve a pergunta incorporando o tema do histórico. A reescrita só é aceita se trouxer algum termo específico do histórico; modelos pequenos às vezes perdem o assunto ou inventam outro.
-3. **Busca multi-consulta** — a busca híbrida usa a reescrita **e** a expansão "pergunta anterior + pergunta atual", fundidas por RRF, o que garante que os termos do tema nunca se percam. Se a reescrita foi rejeitada, usa-se só a expansão.
+3. **Busca multi-consulta** — a busca híbrida usa a reescrita **e** a expansão "pergunta anterior + pergunta atual", com as listas intercaladas, o que garante que os termos do tema nunca se percam. Se a reescrita foi rejeitada, usa-se só a expansão.
 4. **Geração** — o modelo responde à pergunta **original** do usuário, com o histórico no prompt para entender a que ela se refere; os fatos continuam vindo dos trechos. A reescrita serve só para a busca, porque reescritas de modelos pequenos às vezes desviam o sentido ("quais limitações…" → "quem identificou as limitações…"). O histórico entra no prompt **apenas** em perguntas de acompanhamento; perguntas independentes usam o mesmo prompt da primeira entrega, porque com o histórico presente o modelo tenta ligá-las à conversa anterior.
 
 ### Perguntas sobre o acervo

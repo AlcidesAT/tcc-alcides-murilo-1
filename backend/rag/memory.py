@@ -17,7 +17,7 @@ Resolução de uma pergunta de acompanhamento:
   a. o LLM reescreve a pergunta incorporando o tema do histórico;
   b. a reescrita só é aceita se trouxer algum termo específico do histórico
      (modelos pequenos às vezes "perdem" o assunto ou inventam outro);
-  c. a busca usa DUAS consultas, fundidas por RRF: a reescrita e a expansão
+  c. a busca usa DUAS consultas, intercaladas: a reescrita e a expansão
      determinística "pergunta anterior + pergunta atual", que garante que os
      termos do tema nunca se percam.
 """
@@ -51,7 +51,7 @@ class Resolution:
     """
 
     standalone: str  # pergunta completa usada na busca/avaliação
-    queries: List[str] = field(default_factory=list)  # consultas fundidas na busca
+    queries: List[str] = field(default_factory=list)  # consultas intercaladas na busca
     mode: str = "none"
     provisional: bool = False
 

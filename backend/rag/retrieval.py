@@ -60,7 +60,7 @@ def ref_entry(text: str, meta: dict) -> Dict:
 
 
 def _doc_key(meta: dict) -> tuple:
-    """Identificador estável de um chunk (para deduplicar na fusão)."""
+    """Identificador estável de um chunk (para não repetir trechos)."""
     return (
         meta.get("folder"),
         meta.get("source"),
@@ -69,21 +69,24 @@ def _doc_key(meta: dict) -> tuple:
     )
 
 
-def _fuse(ranked_lists: List[List[Document]], k: int = 60) -> List[Document]:
-    """Reciprocal Rank Fusion: combina várias listas ordenadas em uma só.
+def _interleave(ranked_lists: List[List[Document]]) -> List[Document]:
+    """Intercala várias listas ordenadas em uma só, sem repetir trechos.
 
-    Cada documento soma 1/(k + posição) de cada lista em que aparece; assim,
-    trechos bem ranqueados na busca semântica E na lexical sobem ao topo.
+    Pega o 1º de cada lista, depois o 2º de cada uma, e assim por diante; um
+    trecho que já entrou por outra lista é pulado. Assim as duas buscas
+    (semântica e por palavra-chave) se revezam no topo do contexto.
     """
-    scores: Dict[tuple, float] = {}
-    docs: Dict[tuple, Document] = {}
-    for ranked in ranked_lists:
-        for rank, doc in enumerate(ranked):
-            key = _doc_key(doc.metadata)
-            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
-            docs.setdefault(key, doc)
-    ordered = sorted(scores.keys(), key=lambda key: scores[key], reverse=True)
-    return [docs[key] for key in ordered]
+    seen = set()
+    merged: List[Document] = []
+    for position in range(max(map(len, ranked_lists), default=0)):
+        for ranked in ranked_lists:
+            if position >= len(ranked):
+                continue
+            key = _doc_key(ranked[position].metadata)
+            if key not in seen:
+                seen.add(key)
+                merged.append(ranked[position])
+    return merged
 
 
 class HybridRetriever:
@@ -151,12 +154,12 @@ class HybridRetriever:
     ) -> List[Document]:
         """Recupera os trechos mais relevantes via **busca híbrida**.
 
-        Funde a busca semântica e a lexical por Reciprocal Rank Fusion. Isso
+        Intercala a busca semântica e a lexical, sem repetir trechos. Isso
         cobre tanto perguntas conceituais quanto termos/siglas literais (ex.:
         "SUS"), percorrendo todos os artigos. Restringível a pasta/artigo.
 
         Aceita várias consultas (memória de pergunta: reescrita + expansão);
-        as listas de todas elas entram na mesma fusão.
+        as listas de todas elas entram na mesma intercalação.
         """
         queries = [query] if isinstance(query, str) else list(query)
         ranked = []
@@ -166,7 +169,7 @@ class HybridRetriever:
             if keyword_docs:
                 ranked.append(keyword_docs)
 
-        docs = ranked[0] if len(ranked) == 1 else _fuse(ranked)
+        docs = _interleave(ranked)
         terms = tokenize(" ".join(queries))
         return self._with_key_chunks(docs, terms)[:RETRIEVAL_K]
 

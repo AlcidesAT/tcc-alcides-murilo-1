@@ -2,7 +2,7 @@
 Pacote do pipeline RAG.
 
     lexical.py     tokenização e índice BM25 (busca por palavra-chave)
-    retrieval.py   busca híbrida (MMR + BM25 + RRF) e seleção de referências
+    retrieval.py   busca híbrida (MMR + BM25, intercalados) e seleção de referências
     memory.py      memória de pergunta (histórico e reescrita da pergunta)
     catalog.py     perguntas sobre o acervo (lista de artigos no prompt)
     prompts.py     prompts de geração e de reescrita
