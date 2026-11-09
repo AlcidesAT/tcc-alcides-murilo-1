@@ -155,6 +155,54 @@ CREATE TABLE IF NOT EXISTS survey_responses (
     updated_at      TIMESTAMP    NOT NULL DEFAULT now()
 );
 
+-- ---------------------------------------------------------------------------
+-- Visões de leitura (para DBeaver, psql etc.): os dados continuam nas tabelas.
+-- O app recria as duas ao iniciar; em vw_questionario, as colunas das
+-- afirmações vêm de data/evaluation/questionario.json (abaixo, a versão 1).
+-- ---------------------------------------------------------------------------
+DROP VIEW IF EXISTS vw_perguntas_turma;
+CREATE VIEW vw_perguntas_turma AS
+SELECT i.created_at                           AS data_utc,
+       left(i.session_id::text, 8)            AS sessao,
+       i.question                             AS pergunta,
+       i.standalone_question                  AS pergunta_buscada,
+       i.answer                               AS resposta,
+       length(i.answer)                       AS caracteres,
+       round(i.response_ms / 1000.0, 1)       AS tempo_s,
+       round(i.groundedness::numeric, 3)      AS fundamentacao,
+       round(i.question_coverage::numeric, 3) AS cobertura_pergunta,
+       i.level                                AS nivel,
+       e.rating                               AS nota,
+       e.comment                              AS comentario_nota,
+       CASE WHEN jsonb_typeof(i.sources) = 'array' THEN
+            (SELECT string_agg(s ->> 'source', ' | ') FROM jsonb_array_elements(i.sources) s)
+       END                                    AS artigos,
+       i.scope                                AS escopo,
+       i.memory_mode                          AS memoria,
+       i.llm_model                            AS modelo,
+       i.session_id                           AS sessao_id,
+       i.id                                   AS pergunta_id
+  FROM interactions i
+  LEFT JOIN answer_evaluations e ON e.interaction_id = i.id;
+
+DROP VIEW IF EXISTS vw_questionario;
+CREATE VIEW vw_questionario AS
+SELECT r.created_at                AS enviado_utc,
+       r.updated_at                AS atualizado_utc,
+       left(r.session_id::text, 8) AS sessao,
+       r.survey_version            AS versao,
+       (r.answers ->> 'relevancia')::smallint  AS relevancia,
+       (r.answers ->> 'precisao')::smallint    AS precisao,
+       (r.answers ->> 'clareza')::smallint     AS clareza,
+       (r.answers ->> 'fontes')::smallint      AS fontes,
+       (r.answers ->> 'memoria')::smallint     AS memoria,
+       (r.answers ->> 'tempo')::smallint       AS tempo,
+       (r.answers ->> 'usabilidade')::smallint AS usabilidade,
+       (r.answers ->> 'utilidade')::smallint   AS utilidade,
+       r.comment                   AS comentario,
+       r.session_id                AS sessao_id
+  FROM survey_responses r;
+
 -- ===========================================================================
 -- NOTA — Autenticação de usuários
 -- Por enquanto há dois logins fixos, definidos no .env: o do Administrador e o
