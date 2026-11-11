@@ -206,7 +206,7 @@ Com o login da turma, a interface mostra o aviso "Registrando para a pesquisa" e
 | --- | --- | --- |
 | Sessão do participante | `participant_sessions` | ao entrar (e a saída, ao clicar em "Sair") |
 | Pergunta, resposta, fontes, métricas automáticas, modelo e tempo de resposta | `interactions` | a cada resposta |
-| Nota de 1 a 5 e comentário de uma resposta | `answer_evaluations` | ao clicar nas estrelas e enviar (avaliar de novo substitui) |
+| Nota de 1 a 5 e comentário de uma resposta | `answer_evaluations` | no clique da estrela; o comentário, ao enviá-lo (avaliar de novo substitui) |
 | Questionário de avaliação do sistema | `survey_responses` | ao enviar o questionário (reenviar substitui) |
 
 Para abrir a coleta num cliente de banco (DBeaver, psql), o app cria ao iniciar duas visões só de leitura: `vw_perguntas_turma` (uma linha por pergunta da turma, com a resposta, as métricas, os artigos e a nota dada) e `vw_questionario` (uma linha por participante, uma coluna de 1 a 5 por afirmação, com o texto da afirmação no comentário da coluna). Os dados continuam nas tabelas acima. As colunas de `vw_questionario` seguem o `questionario.json` lido na inicialização: depois de acrescentar ou retirar afirmações, reinicie o servidor para a visão acompanhar.

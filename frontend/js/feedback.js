@@ -151,12 +151,55 @@ export function buildFeedback(interaction) {
 
     extra.append(comment, send, status);
 
+    // Posts run one at a time, so fast clicks on different stars reach the
+    // server in order and the last star clicked is the rating that stays.
+    let pending = Promise.resolve();
+
+    function post(rating, text) {
+        const ev = interaction.evaluation || {};
+        const request = pending.then(() =>
+            api.sendEvaluation({
+                interaction_id: interaction.interaction_id || null,
+                question: interaction.question,
+                standalone_question: interaction.standalone_question,
+                answer: interaction.answer,
+                scope: interaction.scope,
+                sources: interaction.sources || [],
+                used_memory: Boolean(interaction.used_memory),
+                rating,
+                comment: text,
+                metrics: {
+                    groundedness: ev.groundedness ?? null,
+                    question_coverage: ev.question_coverage ?? null,
+                    level: ev.level ?? null,
+                },
+                model: interaction.model || null,
+            }),
+        );
+        pending = request.catch(() => {});
+        return request;
+    }
+
     const stars = buildStarRating({
         labels: RATING_LABELS,
         ariaLabel: "Nota de precisão de 1 a 5",
-        onChange: () => {
+        onChange: (rating) => {
             extra.hidden = false;
             status.textContent = "";
+            // The star click already saves the rating, silently: participants
+            // picked a star, saw it lit and left without pressing "Enviar
+            // avaliação", and nothing reached the database. The button still
+            // works as before and replaces this row (same interaction_id).
+            // Without interaction_id every POST inserts a new row, so only the
+            // button saves there, as it always did.
+            if (!interaction.interaction_id) return;
+            post(rating, comment.value.trim() || null).then(
+                () => document.dispatchEvent(new CustomEvent("evaluation:saved")),
+                (err) => {
+                    status.className = "feedback-status error";
+                    status.textContent = `Não foi possível salvar: ${err.message}`;
+                },
+            );
         },
     });
 
@@ -166,25 +209,8 @@ export function buildFeedback(interaction) {
         send.disabled = true;
         status.className = "feedback-status";
         status.textContent = "Enviando…";
-        const ev = interaction.evaluation || {};
         try {
-            await api.sendEvaluation({
-                interaction_id: interaction.interaction_id || null,
-                question: interaction.question,
-                standalone_question: interaction.standalone_question,
-                answer: interaction.answer,
-                scope: interaction.scope,
-                sources: interaction.sources || [],
-                used_memory: Boolean(interaction.used_memory),
-                rating,
-                comment: comment.value.trim() || null,
-                metrics: {
-                    groundedness: ev.groundedness ?? null,
-                    question_coverage: ev.question_coverage ?? null,
-                    level: ev.level ?? null,
-                },
-                model: interaction.model || null,
-            });
+            await post(rating, comment.value.trim() || null);
             box.classList.add("sent");
             box.innerHTML = "";
             const done = document.createElement("span");
