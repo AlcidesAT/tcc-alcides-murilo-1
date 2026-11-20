@@ -10,9 +10,7 @@
  *  - Memória de pergunta: envia o histórico da conversa em segundo plano e
  *    marca com um "↻" discreto quando a pergunta foi entendida com base nele
  *    (ver memory.js)
- *  - Avaliação: selo de confiança automático e nota do usuário (feedback.js)
- *  - Limite do login da turma: "Pergunta 2 de 3" e, ao final, o caminho para
- *    o questionário no lugar do campo de pergunta
+ *  - Selo de confiança automático (feedback.js)
  *  - Espera pela resposta: trechos encontrados na hora e posição na fila
  */
 
@@ -20,8 +18,7 @@ import * as api from "./api.js";
 import { escapeHtml, renderMarkdown } from "./utils.js";
 import { openArticle } from "./reader.js";
 import { clearMemory, getHistory, memoryEpoch, remember } from "./memory.js";
-import { buildFeedback, buildQualityBadge } from "./feedback.js";
-import { openSurvey } from "./survey.js";
+import { buildQualityBadge } from "./feedback.js";
 
 const scopeFolder = document.getElementById("scope-folder");
 const scopeArticle = document.getElementById("scope-article");
@@ -37,11 +34,10 @@ const newChatBtn = document.getElementById("new-chat-btn");
 const collapseBtn = document.getElementById("collapse-btn");
 const openSidebarBtn = document.getElementById("open-sidebar-btn");
 const appEl = document.getElementById("app");
-const quotaEl = document.getElementById("question-quota");
-const quotaDoneEl = document.getElementById("quota-done");
-const quotaDoneText = document.getElementById("quota-done-text");
 const helpEl = document.getElementById("ask-help");
-const modelsEl = document.getElementById("question-models");
+
+// Níveis de mensagens que não são respostas sobre os artigos (ver rag/service.py).
+const NOT_ANSWERS = new Set(["fora", "conversa"]);
 
 let documentsByFolder = {};
 
@@ -61,29 +57,6 @@ export function initChat() {
 
     collapseBtn.addEventListener("click", () => appEl.classList.add("sidebar-hidden"));
     openSidebarBtn.addEventListener("click", () => appEl.classList.remove("sidebar-hidden"));
-
-    document.getElementById("quota-survey").addEventListener("click", openSurvey);
-    document.addEventListener("rolechange", refreshQuota);
-    refreshQuota(); // o login salvo é lido antes de este módulo iniciar
-}
-
-async function refreshQuota() {
-    setQuota(api.isParticipant() ? await api.getQuota() : null);
-}
-
-/** Mostra quantas perguntas restam; esgotadas, troca o campo pelo questionário. */
-function setQuota(quota) {
-    const limit = quota?.questions_limit || 0;
-    const used = quota?.questions_used || 0;
-    const finished = limit > 0 && used >= limit;
-
-    quotaEl.hidden = !limit || finished;
-    quotaEl.textContent = `Pergunta ${used + 1} de ${limit}`;
-    askForm.hidden = finished;
-    helpEl.hidden = finished;
-    modelsEl.hidden = finished;
-    quotaDoneEl.hidden = !finished;
-    quotaDoneText.textContent = `Você fez as ${limit} perguntas. Falta só o questionário de avaliação.`;
 }
 
 function autoResize() {
@@ -213,14 +186,13 @@ async function handleSubmit(e) {
             onToken: (text) => bot.appendText(text),
             onDone: (result) => {
                 bot.finalize(result);
-                if (result.evaluation?.level !== "fora") remember(q, bot.text(), askedAt);
-                if (result.questions_limit) setQuota(result);
+                // Recusas e cumprimentos não entram na memória da conversa.
+                if (!NOT_ANSWERS.has(result.evaluation?.level)) remember(q, bot.text(), askedAt);
             },
             onError: (err) => bot.fail(err.message),
         });
     } catch (err) {
         bot.fail(err.message);
-        refreshQuota();
     } finally {
         askBtn.disabled = false;
         questionEl.focus();
@@ -452,29 +424,9 @@ function createBotMessage(question) {
             footer.className = "msg-footer";
             const badge = buildQualityBadge(result.evaluation);
             if (badge) footer.appendChild(badge);
-            if (result.collected) {
-                const note = document.createElement("span");
-                note.className = "collected-note";
-                note.textContent = "Registrada para a pesquisa";
-                footer.appendChild(note);
-            }
-            const offTopic = result.evaluation?.level === "fora";
-            if (offTopic) helpEl.open = true;
-            const feedback =
-                !offTopic &&
-                buildFeedback({
-                    interaction_id: result.interaction_id,
-                    question,
-                    standalone_question: result.standalone_question ?? meta.standalone_question,
-                    answer: rawText,
-                    scope,
-                    sources,
-                    used_memory: result.used_memory ?? meta.used_memory,
-                    evaluation: result.evaluation,
-                    model: result.model,
-                });
-            if (feedback) footer.appendChild(feedback);
-            content.appendChild(footer);
+            // Recusa ou cumprimento: abre "Como perguntar", com os temas do acervo.
+            if (NOT_ANSWERS.has(result.evaluation?.level)) helpEl.open = true;
+            if (footer.childElementCount) content.appendChild(footer);
 
             setReferences(sources);
             scrollToBottom();

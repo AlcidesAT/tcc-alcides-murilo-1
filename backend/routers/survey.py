@@ -1,10 +1,8 @@
 """
-Questionário de avaliação do sistema (tela "Avaliar o sistema").
+Questionário de avaliação do sistema, respondido nos testes com a turma.
 
-  - GET  /api/survey          participante: afirmações + a resposta já enviada, se houver
-  - POST /api/survey          participante: envia (ou atualiza) o questionário da sessão
-  - GET  /api/survey/summary  🔒 média e distribuição por afirmação, comentários
-  - GET  /api/survey/export   🔒 uma linha por participante, uma coluna por afirmação
+  - GET /api/survey/summary  🔒 média e distribuição por afirmação, comentários
+  - GET /api/survey/export   🔒 uma linha por participante, uma coluna por afirmação
 
 As afirmações ficam em data/evaluation/questionario.json (lidas a cada
 requisição, então editar o arquivo não exige reiniciar o servidor).
@@ -12,7 +10,6 @@ requisição, então editar o arquivo não exige reiniciar o servidor).
 
 import json
 from collections import Counter
-from datetime import datetime
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,11 +18,10 @@ from sqlalchemy.orm import Session
 from config import SURVEY_FILE
 from csv_export import csv_response, num, short_id, when
 from database import get_db
-from dependencies import Principal, require_admin, require_participant
+from dependencies import require_admin
 from models import SurveyResponse
-from schemas import SurveyRequest
 
-router = APIRouter(prefix="/api/survey", tags=["questionário"])
+router = APIRouter(prefix="/api/survey", tags=["questionário"], dependencies=[Depends(require_admin)])
 
 
 def load_survey() -> Dict:
@@ -45,52 +41,7 @@ def _avg(values) -> Optional[float]:
     return round(sum(values) / len(values), 2) if values else None
 
 
-@router.get("")
-def get_survey(principal: Principal = Depends(require_participant), db: Session = Depends(get_db)):
-    survey = load_survey()
-    try:
-        previous = db.query(SurveyResponse).filter(SurveyResponse.session_id == principal.session_id).first()
-    except Exception as exc:
-        raise _db_unavailable(exc) from exc
-    return {
-        **survey,
-        "resposta": {"answers": previous.answers, "comment": previous.comment} if previous else None,
-    }
-
-
-@router.post("", status_code=201)
-def submit_survey(
-    payload: SurveyRequest,
-    principal: Principal = Depends(require_participant),
-    db: Session = Depends(get_db),
-):
-    survey = load_survey()
-    ids = [item["id"] for item in survey["afirmacoes"]]
-    missing = [i for i in ids if i not in payload.answers]
-    if missing:
-        raise HTTPException(status_code=422, detail="Avalie todas as afirmações antes de enviar.")
-    invalid = [i for i in ids if not 1 <= int(payload.answers[i]) <= 5]
-    if invalid:
-        raise HTTPException(status_code=422, detail="As notas vão de 1 a 5 estrelas.")
-    answers = {i: int(payload.answers[i]) for i in ids}
-
-    try:
-        record = db.query(SurveyResponse).filter(SurveyResponse.session_id == principal.session_id).first()
-        if record is None:
-            record = SurveyResponse(session_id=principal.session_id)
-            db.add(record)
-        record.survey_version = str(survey.get("versao", ""))
-        record.answers = answers
-        record.comment = (payload.comment or "").strip() or None
-        record.updated_at = datetime.utcnow()
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise _db_unavailable(exc) from exc
-    return {"id": str(record.id), "saved": True}
-
-
-@router.get("/summary", dependencies=[Depends(require_admin)])
+@router.get("/summary")
 def survey_summary(db: Session = Depends(get_db)):
     survey = load_survey()
     try:
@@ -122,7 +73,7 @@ def survey_summary(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/export", dependencies=[Depends(require_admin)])
+@router.get("/export")
 def export_survey(db: Session = Depends(get_db)):
     survey = load_survey()
     ids = [item["id"] for item in survey["afirmacoes"]]

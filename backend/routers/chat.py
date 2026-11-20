@@ -3,15 +3,14 @@ Perguntas em linguagem natural (com memória da conversa).
 """
 
 import json
-import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import iterate_in_threadpool, run_in_threadpool
 from fastapi.responses import StreamingResponse
 
-from config import LLM_MAX_CONCURRENT, QUEUE_UPDATE_SECONDS, REQUIRE_LOGIN, slugify_folder
-from dependencies import LEITOR, Principal, get_principal, get_rag
-from persistence import save_interaction, save_sources, session_quota
+from config import LLM_MAX_CONCURRENT, QUEUE_UPDATE_SECONDS, slugify_folder
+from dependencies import get_rag
+from persistence import save_sources
 from rag import RAGContext, RAGService
 from rag.queue import GenerationQueue
 from schemas import AskRequest, AskResponse
@@ -21,25 +20,6 @@ router = APIRouter(prefix="/api", tags=["perguntas"])
 OLLAMA_HINT = "Verifique se o Ollama está em execução e se os modelos foram baixados."
 
 generation_queue = GenerationQueue(LLM_MAX_CONCURRENT)
-
-
-def _authorize(principal: Principal) -> None:
-    """Regras da coleta: login obrigatório (opcional) e limite por sessão.
-
-    A pergunta só conta depois de respondida e registrada: resposta com erro
-    não consome o limite.
-    """
-    if REQUIRE_LOGIN and principal.role == LEITOR:
-        raise HTTPException(status_code=401, detail="Entre com o login da turma para fazer perguntas.")
-    if not principal.is_participant:
-        return
-    quota = session_quota(principal.session_id)
-    limit = quota["questions_limit"]
-    if limit and quota["questions_used"] >= limit:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Você já fez as {limit} perguntas desta sessão. Responda ao questionário de avaliação.",
-        )
 
 
 def _validate_ask(payload: AskRequest, rag: RAGService):
@@ -74,33 +54,8 @@ def _prepare(payload: AskRequest, rag: RAGService, rewrite: bool = True) -> RAGC
         ) from exc
 
 
-def _collect(principal: Principal, ctx: RAGContext, result: dict, started: float) -> dict:
-    """Com o login da turma, registra a pergunta e a resposta no banco.
-
-    Pergunta fora dos artigos não é registrada: quem foi recusado reformula sem
-    gastar uma das perguntas da sessão.
-    """
-    if not principal.is_participant:
-        return {"interaction_id": None, "collected": False}
-    interaction_id = None
-    if not ctx.off_topic:
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        interaction_id = save_interaction(principal.session_id, ctx.question, result, elapsed_ms)
-    return {
-        "interaction_id": interaction_id,
-        "collected": interaction_id is not None,
-        **session_quota(principal.session_id),
-    }
-
-
 @router.post("/ask", response_model=AskResponse)
-async def ask(
-    payload: AskRequest,
-    rag: RAGService = Depends(get_rag),
-    principal: Principal = Depends(get_principal),
-):
-    started = time.perf_counter()
-    await run_in_threadpool(_authorize, principal)
+async def ask(payload: AskRequest, rag: RAGService = Depends(get_rag)):
     ctx = await run_in_threadpool(_prepare, payload, rag, False)
 
     ticket = generation_queue.join() if ctx.needs_model else None
@@ -124,9 +79,7 @@ async def ask(
             generation_queue.leave(ticket, completed)
 
     await run_in_threadpool(save_sources, ctx.sources)
-    result = await run_in_threadpool(rag.result, ctx, answer)
-    collected = await run_in_threadpool(_collect, principal, ctx, result, started)
-    return {**result, **collected}
+    return await run_in_threadpool(rag.result, ctx, answer)
 
 
 def _event(data: dict) -> str:
@@ -134,11 +87,7 @@ def _event(data: dict) -> str:
 
 
 @router.post("/ask/stream")
-async def ask_stream(
-    payload: AskRequest,
-    rag: RAGService = Depends(get_rag),
-    principal: Principal = Depends(get_principal),
-):
+async def ask_stream(payload: AskRequest, rag: RAGService = Depends(get_rag)):
     """Versão em streaming: emite NDJSON (uma linha JSON por evento).
 
     Eventos, em ordem:
@@ -146,13 +95,9 @@ async def ask_stream(
       {"type":"queue","position":...,"eta_seconds":...}  (enquanto espera a vez)
       {"type":"meta", "standalone_question", "used_memory", "memory_turns", ...}
       {"type":"token","text":...}  (vários, durante a geração)
-      {"type":"done","sources":[...],"passages":[...],"scope":...,"evaluation":{...},"model":...,
-       "interaction_id":..., "collected":..., "questions_used":..., "questions_limit":...}
-    Erros durante a geração viram {"type":"error","detail":...}. Com o login da
-    turma, a pergunta é registrada antes do evento "done" (que leva o id).
+      {"type":"done","sources":[...],"passages":[...],"scope":...,"evaluation":{...},"model":...}
+    Erros durante a geração viram {"type":"error","detail":...}.
     """
-    started = time.perf_counter()
-    await run_in_threadpool(_authorize, principal)
     # Memória + recuperação acontecem antes do streaming para que falhas (ex.:
     # Ollama indisponível ao gerar embeddings) retornem um status HTTP adequado.
     # Sem o LLM, elas não dependem da fila.
@@ -195,9 +140,8 @@ async def ask_stream(
                 generation_queue.leave(ticket, completed)
 
         result = await run_in_threadpool(rag.result, ctx, "".join(parts))
-        collected = await run_in_threadpool(_collect, principal, ctx, result, started)
         result.pop("answer")  # o texto já foi enviado token a token
-        yield _event({"type": "done", **result, **collected})
+        yield _event({"type": "done", **result})
 
         await run_in_threadpool(save_sources, ctx.sources)
 

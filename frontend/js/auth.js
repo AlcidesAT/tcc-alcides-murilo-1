@@ -1,21 +1,19 @@
 /**
- * Perfis de acesso: Leitor (padrão), Participante e Administrador.
+ * Perfis de acesso: Leitor (padrão) e Administrador.
  *
  * O Leitor só consulta os artigos indexados; nada é registrado.
- * O Participante entra com o login da turma (usado por todos nos testes com
- * usuários): as perguntas, respostas, notas e o questionário vão para o banco.
- * O Administrador envia, organiza e indexa artigos e acessa os dados coletados.
+ * O Administrador envia, organiza e indexa artigos e acessa os dados coletados
+ * nos testes com a turma.
  *
  * A visibilidade das funcionalidades de cada perfil é controlada por uma classe
- * no <body> (`role-leitor` / `role-participante` / `role-admin`); o CSS mostra
- * os elementos `.admin-only` e `.participant-only` só para o perfil certo.
+ * no <body> (`role-leitor` / `role-admin`); o CSS mostra os elementos
+ * `.admin-only` só para o Administrador.
  */
 
 import * as api from "./api.js";
 
 const ROLE_LABELS = {
     leitor: "Leitor",
-    participante: "Participante",
     admin: "Administrador",
 };
 
@@ -61,7 +59,7 @@ export async function initAuth() {
 
 /**
  * Reflete o perfil atual no <body> e no rótulo/botão da sidebar e avisa os
- * demais módulos pelo evento "rolechange" (painel de avaliação, questionário).
+ * demais módulos pelo evento "rolechange" (painel dos dados coletados).
  */
 function applyRole() {
     const role = api.getRole();
@@ -71,7 +69,7 @@ function applyRole() {
     profileBtn.textContent = role === "leitor" ? "Entrar" : "Sair";
     document.dispatchEvent(
         new CustomEvent("rolechange", {
-            detail: { role, admin: role === "admin", participant: role === "participante" },
+            detail: { role, admin: role === "admin" },
         }),
     );
 }

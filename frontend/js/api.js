@@ -23,7 +23,7 @@ async function request(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Login: Participante (login da turma) e Administrador
+// Login do Administrador
 //
 // O token e o perfil ficam no sessionStorage (valem enquanto a aba estiver
 // aberta) e o token vai no cabeçalho `X-Auth-Token` de todas as chamadas.
@@ -44,17 +44,13 @@ function setAuth(auth) {
     else sessionStorage.removeItem(AUTH_KEY);
 }
 
-/** "leitor" (sem login), "participante" ou "admin". */
+/** "leitor" (sem login) ou "admin". */
 export function getRole() {
     return getAuth().role || "leitor";
 }
 
 export function isAdmin() {
     return getRole() === "admin";
-}
-
-export function isParticipant() {
-    return getRole() === "participante";
 }
 
 function authHeaders(extra = {}) {
@@ -93,16 +89,6 @@ export async function refreshRole() {
         return role;
     } catch {
         return getRole(); // servidor fora do ar: mantém o que havia
-    }
-}
-
-/** Perguntas usadas e limite da sessão do participante (null sem limite). */
-export async function getQuota() {
-    try {
-        const data = await request("/api/auth/me", { headers: authHeaders() });
-        return data.questions_limit ? data : null;
-    } catch {
-        return null;
     }
 }
 
@@ -182,9 +168,7 @@ export async function ask(question, folder, source, history = []) {
  *   onQueue(status)  — enquanto espera a vez: { position, eta_seconds }
  *   onMeta(meta)     — antes da geração: pergunta reescrita pela memória
  *   onToken(text)    — a cada pedaço de texto gerado
- *   onDone(result)   — ao final: { sources, passages, scope, evaluation, model,
- *                      interaction_id, collected, questions_used,
- *                      questions_limit, ... }
+ *   onDone(result)   — ao final: { sources, passages, scope, evaluation, model, ... }
  *   onError(error)   — em caso de erro durante a geração
  */
 export async function askStream(
@@ -244,28 +228,8 @@ export async function askStream(
 }
 
 // ---------------------------------------------------------------------------
-// Avaliação: notas das respostas, questionário e dados coletados
+// Dados coletados nos testes com a turma (Administrador)
 // ---------------------------------------------------------------------------
-
-function postJson(path, payload) {
-    return request(path, {
-        method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(payload),
-    });
-}
-
-export function sendEvaluation(payload) {
-    return postJson("/api/evaluations", payload);
-}
-
-export function getSurvey() {
-    return request("/api/survey", { headers: authHeaders() });
-}
-
-export function sendSurvey(answers, comment) {
-    return postJson("/api/survey", { answers, comment });
-}
 
 export function getEvaluationSummary() {
     return request("/api/evaluations/summary", { headers: authHeaders() });

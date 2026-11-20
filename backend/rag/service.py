@@ -46,6 +46,7 @@ from rag.memory import (
     normalize_history,
 )
 from rag.prompts import ANSWER_PROMPT, HISTORY_BLOCK
+from rag.smalltalk import small_talk_answer
 from rag.retrieval import HybridRetriever, location_label, scope_label
 
 OFF_TOPIC_ANSWER = (
@@ -80,6 +81,8 @@ class RAGContext:
     catalog_answer: Optional[str] = None
     # Pergunta sem relação com os artigos: recusada sem o LLM (ver prepare).
     off_topic: bool = False
+    # Cumprimento ou agradecimento ("oi", "obrigado"): resposta pronta, sem busca.
+    small_talk: bool = False
 
     @property
     def standalone_question(self) -> str:
@@ -243,6 +246,20 @@ class RAGService:
         perguntas de acompanhamento, repete-se a preparação quando chegar a vez.
         """
         turns = normalize_history(history)
+
+        # Antes da memória: com histórico, "obrigado" pareceria acompanhamento.
+        greeting = small_talk_answer(question)
+        if greeting is not None:
+            return RAGContext(
+                question=question,
+                resolution=Resolution(standalone=question, queries=[question]),
+                folder=folder,
+                source=source,
+                history=turns,
+                catalog_answer=greeting,
+                small_talk=True,
+            )
+
         resolution = self.condenser.resolve(question, turns, rewrite)
 
         if not source and is_catalog_question(question):
@@ -361,7 +378,7 @@ class RAGService:
                 "question_coverage": None,
                 "sentences": 0,
                 "supported_sentences": 0,
-                "level": "fora" if ctx.off_topic else "acervo",
+                "level": "conversa" if ctx.small_talk else "fora" if ctx.off_topic else "acervo",
             }
         return evaluate_answer(ctx.standalone_question, answer, ctx.docs)
 

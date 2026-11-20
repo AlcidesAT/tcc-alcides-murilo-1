@@ -5,74 +5,8 @@ Qualquer falha (banco indisponível, etc.) é apenas registrada no console e
 nunca interrompe a resposta ao usuário.
 """
 
-from typing import Dict, Optional
-
-from config import PARTICIPANT_QUESTION_LIMIT
 from database import SessionLocal
-from models import Interaction, QuestionSource
-
-
-def session_quota(session_id) -> Dict:
-    """Perguntas registradas na sessão do participante e o limite por sessão.
-
-    Se o banco falhar, conta zero: a falha não impede a pessoa de perguntar.
-    """
-    used = 0
-    try:
-        db = SessionLocal()
-        try:
-            used = db.query(Interaction).filter(Interaction.session_id == session_id).count()
-        finally:
-            db.close()
-    except Exception as exc:
-        print(f"[WARNING] Não foi possível contar as perguntas da sessão: {exc}")
-    return {"questions_used": used, "questions_limit": PARTICIPANT_QUESTION_LIMIT}
-
-
-def save_interaction(session_id, question: str, result: Dict, response_ms: int) -> Optional[str]:
-    """Registra a pergunta de um participante e a resposta gerada.
-
-    `result` é o dicionário de `RAGService.result()` (com "answer"). Devolve o
-    id da pergunta registrada, ou None se o banco falhar — a resposta ao
-    participante segue normalmente.
-    """
-    try:
-        db = SessionLocal()
-    except Exception as exc:
-        print(f"[WARNING] Não foi possível abrir sessão do banco: {exc}")
-        return None
-
-    try:
-        evaluation = result.get("evaluation") or {}
-        record = Interaction(
-            session_id=session_id,
-            question=question,
-            standalone_question=result.get("standalone_question"),
-            answer=result.get("answer", ""),
-            scope=result.get("scope"),
-            sources=[
-                {"folder": s.get("folder"), "source": s.get("source"), "location": s.get("location")}
-                for s in result.get("sources") or []
-            ],
-            memory_mode=result.get("memory_mode"),
-            groundedness=evaluation.get("groundedness"),
-            question_coverage=evaluation.get("question_coverage"),
-            level=evaluation.get("level"),
-            llm_model=result.get("model"),
-            response_ms=response_ms,
-        )
-        db.add(record)
-        db.commit()
-        return str(record.id)
-    except Exception as exc:
-        print(f"[WARNING] Falha ao registrar a pergunta do participante: {exc}")
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        return None
-    finally:
-        db.close()
+from models import QuestionSource
 
 
 def save_sources(sources: list) -> None:

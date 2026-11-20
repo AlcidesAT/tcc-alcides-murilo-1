@@ -1,11 +1,11 @@
 /**
  * Painel "Coleta da pesquisa" (exclusivo do Administrador).
  *
- * Mostra o que foi registrado com o login da turma: totais da coleta
+ * Mostra o que foi registrado nos testes com a turma: totais da coleta
  * (sessões, perguntas, tempo de resposta), as notas dadas às respostas
  * (com a fundamentação automática) e o resultado do questionário de avaliação
  * do sistema. Exporta cada conjunto em CSV para a análise do TCC. Atualiza ao
- * entrar como admin, ao clicar em ↻ e sempre que uma avaliação é registrada.
+ * entrar como admin e ao clicar em ↻.
  */
 
 import * as api from "./api.js";
@@ -26,9 +26,6 @@ export function initEvaluation() {
     );
     document.addEventListener("rolechange", (e) => {
         if (e.detail?.admin) loadAll();
-    });
-    document.addEventListener("evaluation:saved", () => {
-        if (api.isAdmin()) loadAll();
     });
     if (api.isAdmin()) loadAll();
 }

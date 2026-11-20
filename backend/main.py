@@ -5,9 +5,8 @@ Este módulo apenas monta a aplicação: middlewares, inicialização do banco,
 rotas (em `routers/`) e o front-end estático. A lógica de recuperação, geração,
 memória e avaliação fica no pacote `rag/`.
 
-Perfis de acesso: Leitor (consulta, padrão), Participante (login da turma:
-consulta + coleta de perguntas e avaliações para a pesquisa) e Administrador
-(envio e gestão de artigos e acesso aos dados coletados).
+Perfis de acesso: Leitor (consulta, padrão) e Administrador (envio e gestão de
+artigos e acesso aos dados coletados nos testes com a turma).
 """
 
 from contextlib import asynccontextmanager

@@ -5,8 +5,8 @@
  * O expansivo orienta o que e como perguntar e mostra os temas do acervo, com
  * exemplos. Os modelos seguem o escopo de "Pesquisar em": exemplos de vários
  * assuntos, do assunto escolhido ou, com um artigo escolhido, perguntas sobre
- * ele. Clicar em um exemplo ou modelo só preenche o campo, sem enviar, porque
- * o login da turma tem um número limitado de perguntas. Os assuntos vêm do
+ * ele. Clicar em um exemplo ou modelo só preenche o campo, sem enviar, para a
+ * pessoa poder ajustar a pergunta antes. Os assuntos vêm do
  * estado global; os temas e exemplos abaixo foram conferidos no acervo.
  */
 

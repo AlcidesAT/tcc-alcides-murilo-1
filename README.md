@@ -8,15 +8,15 @@ A aplicação permite que o usuário envie artigos científicos (PDF, Markdown o
 
 ```
 Frontend (HTML/CSS/JS — módulos ES)
-   chat · memória da conversa · estrelas · questionário · painel admin
+   chat · memória da conversa · painel admin
         |
         v
 FastAPI (backend/main.py)  — só monta o app
-   routers/auth.py          login da turma e do Administrador
+   routers/auth.py          login do Administrador
    routers/library.py       assuntos, artigos, upload, remoção
-   routers/chat.py          perguntas (com histórico), streaming e coleta
-   routers/evaluation.py    notas das respostas, resumo e CSV
-   routers/survey.py        questionário de avaliação do sistema
+   routers/chat.py          perguntas (com histórico) e streaming
+   routers/evaluation.py    notas coletadas: resumo e CSV
+   routers/survey.py        questionário coletado: resumo e CSV
    routers/interactions.py  perguntas coletadas: resumo e CSV
         |
         v
@@ -46,7 +46,7 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
 | Banco de dados | PostgreSQL (metadados, log de fontes e avaliações via SQLAlchemy) |
 | Frontend | HTML, CSS e JavaScript puros |
 
-> **Perfis de acesso**: o sistema tem três perfis. O **Leitor** (padrão, sem login) apenas consulta os artigos indexados; nada é registrado. O **Participante** entra com o **login da turma**, compartilhado por todos nos testes com usuários: suas perguntas, as respostas, as notas por estrelas e o questionário de avaliação vão para o banco de registro, em sessões anônimas (veja [Testes com usuários](#testes-com-usuários-login-da-turma)). O **Administrador** envia, organiza e indexa artigos e acessa os dados coletados. Os dois logins ficam no `.env` (`ADMIN_USER`/`ADMIN_PASSWORD` e `PARTICIPANT_USER`/`PARTICIPANT_PASSWORD`); para entrar, clique em **"Entrar"** no rodapé do menu lateral.
+> **Perfis de acesso**: o sistema tem dois perfis. O **Leitor** (padrão, sem login) consulta os artigos indexados; nada é registrado. O **Administrador** envia, organiza e indexa artigos e acessa os dados coletados nos testes com a turma (veja [Testes com usuários](#testes-com-usuários-encerrados)). O login fica no `.env` (`ADMIN_USER`/`ADMIN_PASSWORD`); para entrar, clique em **"Entrar"** no rodapé do menu lateral.
 
 > **Sobre o "EasyRAG"**: no projeto, a recuperação simples e direta proposta no TCC é implementada com os componentes nativos do LangChain (`Chroma` como vector store + `as_retriever`), formando um pipeline RAG enxuto e fácil de manter. Caso queira substituir por uma biblioteca específica, basta trocar a implementação dentro de [backend/rag/retrieval.py](backend/rag/retrieval.py) — o restante do sistema permanece igual.
 
@@ -90,7 +90,7 @@ continua no ChromaDB; o PostgreSQL guarda o registro/auditoria dos uploads.
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tcc_rag
    ```
 
-   No mesmo `.env`, defina as senhas dos logins (`ADMIN_PASSWORD` e `PARTICIPANT_PASSWORD`). O `.env` está no `.gitignore`: senhas nunca devem ir para o `.env.example` nem para o código.
+   No mesmo `.env`, defina a senha do Administrador (`ADMIN_PASSWORD`). O `.env` está no `.gitignore`: senhas nunca devem ir para o `.env.example` nem para o código.
 
 3. As tabelas são criadas **automaticamente** quando o servidor inicia
    (SQLAlchemy). Se preferir criá-las manualmente, rode o script de esquema:
@@ -130,7 +130,7 @@ Abra o navegador em **<http://127.0.0.1:8000>**.
 
 Tudo roda em containers: a aplicação, o PostgreSQL e o Ollama. No servidor basta ter o **Docker** com o **Docker Compose**; não é preciso instalar Python, PostgreSQL nem Ollama.
 
-1. Crie o `.env` a partir do modelo e defina as senhas (`ADMIN_PASSWORD`, `PARTICIPANT_PASSWORD` e `POSTGRES_PASSWORD`):
+1. Crie o `.env` a partir do modelo e defina as senhas (`ADMIN_PASSWORD` e `POSTGRES_PASSWORD`):
    ```bash
    cp .env.example .env
    ```
@@ -182,13 +182,11 @@ O banco e o Ollama não ficam expostos fora do Docker; só a aplicação abre um
 4. **Para enviar/gerenciar artigos** (perfil Administrador): clique em **"Entrar"** no rodapé do menu lateral e informe o usuário e a senha do administrador (`ADMIN_USER`/`ADMIN_PASSWORD`). As seções de criação de assuntos e envio de artigos passam a aparecer.
 5. Como Administrador, crie um assunto, selecione-o, arraste ou clique para escolher os arquivos (PDF/MD/TXT) e clique em **"Indexar artigos"**. A primeira indexação pode demorar enquanto os embeddings são calculados.
 6. Para voltar ao perfil Leitor, clique em **"Sair"** no mesmo local.
-7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática). Com o login da turma aparecem também as **estrelas de 1 a 5** para avaliar a precisão e o botão **"★ Avaliar o sistema"** no topo. Como Administrador, a seção **"Coleta da pesquisa"** do menu lateral mostra os indicadores e exporta tudo em CSV.
+7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática). Como Administrador, a seção **"Coleta da pesquisa"** do menu lateral mostra os dados coletados nos testes com a turma e exporta tudo em CSV.
 
-## Testes com usuários (login da turma)
+## Testes com usuários (encerrados)
 
-Para a aplicação com a turma, todos usam o **mesmo login**: o usuário é `turma` (ou o definido em `PARTICIPANT_USER`) e a senha é a que vocês definirem em `PARTICIPANT_PASSWORD` no `.env`. As senhas ficam **só no `.env`**, que está fora do Git: o código não tem senha padrão, e um login sem senha definida fica desativado. Cada vez que alguém entra, o sistema abre uma **sessão anônima** no banco: dá para contar quantas pessoas participaram e agrupar os dados de cada uma sem guardar nomes. O login da turma depende do PostgreSQL; se o banco estiver fora do ar, ele é recusado em vez de deixar alguém usar o sistema sem que nada seja registrado.
-
-**Limite de perguntas.** Cada sessão do login da turma pode fazer até `PARTICIPANT_QUESTION_LIMIT` perguntas (3 por padrão; 0 desliga o limite). O servidor conta as perguntas registradas na sessão, a interface mostra "Pergunta 2 de 3" e, depois da última resposta, troca o campo de pergunta pelo botão do questionário. Resposta com erro não consome o limite. Sair e entrar de novo abre outra sessão, com novo limite. Para exigir login de quem pergunta durante a coleta, defina `REQUIRE_LOGIN=true` no `.env` (por padrão, o perfil Leitor pergunta sem login e sem registro).
+Na aplicação com a turma, todos usaram o mesmo **login da turma**. Cada entrada abria uma **sessão anônima** no banco, com um limite de perguntas por sessão; as perguntas, as respostas, as notas de 1 a 5 estrelas e o questionário de avaliação eram registrados. Com os testes concluídos, o login da turma, o limite de perguntas, as estrelas e o questionário foram retirados do sistema. Os dados coletados continuam no banco e o Administrador os consulta e exporta (veja abaixo).
 
 **Várias pessoas ao mesmo tempo.** A busca não usa o modelo que escreve o texto, então os trechos aparecem logo, e só a escrita da resposta entra numa fila por ordem de chegada. Quem espera vê a própria posição, pode ler os artigos e não ocupa o servidor; quem desiste sai da fila sem gastar o modelo. `LLM_MAX_CONCURRENT` define quantas respostas são pedidas ao modelo por vez (2 por padrão). A velocidade da fila depende da máquina e do tamanho das respostas: num Xeon E5-2680 v4 com placa AMD Polaris de 8 GB, 120 perguntas simultâneas levaram cerca de 14 minutos com `OLLAMA_NUM_PARALLEL=1` e cerca de 9 minutos com `OLLAMA_NUM_PARALLEL=2`, com respostas típicas de 530 caracteres; com `OLLAMA_NUM_PARALLEL=2` e respostas típicas de 1.080 caracteres, cerca de 16 minutos. As respostas vão até `ANSWER_MAX_CHARS` (900 caracteres): o prompt pede um parágrafo longo, de pelo menos 8 frases, com o objetivo, o método, os resultados e as conclusões, e esse pedido vem depois dos trechos, onde o modelo o segue melhor. O sistema interrompe o modelo se ele passar do limite, terminando na última frase completa. Assim a fila anda mais rápido, e uma resposta sem fim não a prende.
 
@@ -198,20 +196,22 @@ Para a aplicação com a turma, todos usam o **mesmo login**: o usuário é `tur
 
 **Lista de artigos de um tema.** Pedidos como "quais artigos falam de milho?", "traga artigos sobre soja" ou "artigos sobre enfermagem" são respondidos direto pelo índice, sem o modelo e sem fila (`rag/catalog.py`), com os artigos cujo título, assunto ou conteúdo tratam do tema.
 
-**Perguntas fora dos artigos.** A busca sempre devolve os trechos mais próximos, mesmo sem relação com a pergunta. Por isso, na busca sem filtro de assunto ou artigo, a pergunta é recusada quando seus termos não aparecem juntos em nenhum trecho (`RELEVANCE_MIN_COVERAGE`) e nada no acervo tem sentido próximo (`RELEVANCE_MAX_DISTANCE`). A recusa não usa o modelo, não é registrada e não conta no limite da sessão, já que uma pergunta legítima dita com outras palavras também pode cair nela. Valores calibrados com 251 artigos e o `nomic-embed-text`.
+**Perguntas fora dos artigos.** A busca sempre devolve os trechos mais próximos, mesmo sem relação com a pergunta. Por isso, na busca sem filtro de assunto ou artigo, a pergunta é recusada quando seus termos não aparecem juntos em nenhum trecho (`RELEVANCE_MIN_COVERAGE`) e nada no acervo tem sentido próximo (`RELEVANCE_MAX_DISTANCE`). A recusa não usa o modelo, e a interface abre "Como perguntar", já que uma pergunta legítima dita com outras palavras também pode cair nela. Valores calibrados com 251 artigos e o `nomic-embed-text`.
 
-Com o login da turma, a interface mostra o aviso "Registrando para a pesquisa" e registra:
+**Cumprimentos.** Mensagens feitas só de cumprimento ou agradecimento ("oi", "bom dia", "tudo bem?", "obrigado", "tchau") recebem uma resposta pronta, sem busca e sem o modelo (`rag/smalltalk.py`). Antes, "oi" passava pelo filtro acima (a palavra aparece em algum artigo) e o modelo inventava uma resposta sobre trechos quaisquer. A mensagem pode ter até 6 palavras, todas de conversa; "oi, quais artigos falam de milho?" segue como pergunta.
+
+Durante os testes com a turma, o sistema registrou:
 
 | O quê | Tabela | Quando |
 | --- | --- | --- |
-| Sessão do participante | `participant_sessions` | ao entrar (e a saída, ao clicar em "Sair") |
+| Sessão do participante | `participant_sessions` | ao entrar com o login da turma (e a saída, ao clicar em "Sair") |
 | Pergunta, resposta, fontes, métricas automáticas, modelo e tempo de resposta | `interactions` | a cada resposta |
 | Nota de 1 a 5 e comentário de uma resposta | `answer_evaluations` | no clique da estrela; o comentário, ao enviá-lo (avaliar de novo substitui) |
 | Questionário de avaliação do sistema | `survey_responses` | ao enviar o questionário (reenviar substitui) |
 
 Para abrir a coleta num cliente de banco (DBeaver, psql), o app cria ao iniciar duas visões só de leitura: `vw_perguntas_turma` (uma linha por pergunta da turma, com a resposta, as métricas, os artigos e a nota dada) e `vw_questionario` (uma linha por participante, uma coluna de 1 a 5 por afirmação, com o texto da afirmação no comentário da coluna). Os dados continuam nas tabelas acima. As colunas de `vw_questionario` seguem o `questionario.json` lido na inicialização: depois de acrescentar ou retirar afirmações, reinicie o servidor para a visão acompanhar.
 
-**Questionário de avaliação.** O botão **"★ Avaliar o sistema"** abre uma tela com afirmações avaliadas de 1 a 5 estrelas, numa escala de concordância (1 = discordo totalmente, 5 = concordo totalmente), e um comentário final. As afirmações cobrem os critérios da pesquisa: relevância, precisão, clareza, confiança nas fontes, memória de pergunta, tempo de resposta, facilidade de uso e utilidade. Elas ficam em [data/evaluation/questionario.json](data/evaluation/questionario.json): para mudar o texto, acrescentar ou retirar afirmações, edite o arquivo (sem reiniciar o servidor) e aumente a `versao`, que é gravada com cada resposta.
+**Questionário de avaliação.** Ao final, cada participante avaliou afirmações de 1 a 5 estrelas, numa escala de concordância (1 = discordo totalmente, 5 = concordo totalmente), e um comentário final. As afirmações cobrem os critérios da pesquisa: relevância, precisão, clareza, confiança nas fontes, memória de pergunta, tempo de resposta, facilidade de uso e utilidade. Elas ficam em [data/evaluation/questionario.json](data/evaluation/questionario.json), que dá nome às colunas do resumo, do CSV e da visão `vw_questionario`; a `versao` do arquivo foi gravada com cada resposta.
 
 **Dados para a análise.** Como Administrador, a seção **"Coleta da pesquisa"** mostra o total de sessões, perguntas e o tempo médio de resposta; a nota média e a distribuição das estrelas; e a média de cada afirmação do questionário. Os botões **Exportar CSV** baixam três planilhas (separadas por `;`, prontas para o Excel): **Perguntas** (cada pergunta com a resposta e a nota recebida), **Notas** e **Questionário** (uma linha por participante, uma coluna por afirmação). A coluna `sessao` identifica o participante de forma anônima em todas elas.
 
@@ -248,7 +248,7 @@ A precisão é avaliada em três frentes complementares:
 
 > **Limitação conhecida:** a fundamentação verifica se cada frase se apoia em *algum* dos trechos recuperados, não necessariamente no artigo certo. Se o modelo misturar dois artigos (ex.: citar o delineamento de um estudo de alface ao responder sobre o milho), a frase ainda conta como fundamentada. Por isso a métrica automática complementa, e não substitui, a nota humana e o benchmark.
 
-**2. Avaliação humana.** Com o login da turma, o participante dá a cada resposta uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário, e ao final responde o questionário de avaliação do sistema (veja [Testes com usuários](#testes-com-usuários-login-da-turma)). A nota é gravada em `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos. O Administrador vê o resumo no menu lateral (nota média, % de respostas precisas com nota ≥ 4, fundamentação média, distribuição das notas e resultados por modelo) e exporta os dados em CSV.
+**2. Avaliação humana.** Nos testes com a turma, cada participante deu às respostas uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário, e ao final respondeu o questionário de avaliação do sistema (veja [Testes com usuários](#testes-com-usuários-encerrados)). A nota é gravada em `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos. O Administrador vê o resumo no menu lateral (nota média, % de respostas precisas com nota ≥ 4, fundamentação média, distribuição das notas e resultados por modelo) e exporta os dados em CSV.
 
 **3. Benchmark offline** ([backend/evaluate.py](backend/evaluate.py)). Um conjunto de perguntas de referência com os artigos esperados ([data/evaluation/perguntas.json](data/evaluation/perguntas.json)) mede, de forma reprodutível:
 
@@ -271,14 +271,14 @@ Os resultados são impressos e salvos em `data/evaluation/resultados/` com os pa
 
 ## Endpoints da API
 
-O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas marcadas com 🔒 são do Administrador e as marcadas com 👥 exigem o login da turma.
+O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas marcadas com 🔒 são do Administrador.
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | `GET` | `/api/health` | Verifica se a API está no ar. |
-| `POST` | `/api/auth/login` | Recebe `{"username", "password"}` (turma ou admin) e devolve `{token, role}`. |
-| `GET` | `/api/auth/me` | Perfil do token atual (`leitor`, `participante` ou `admin`) e, com o login da turma, as perguntas usadas e o limite da sessão. |
-| `POST` | `/api/auth/logout` | Encerra a sessão do participante. |
+| `POST` | `/api/auth/login` | Recebe `{"username", "password"}` do Administrador e devolve `{token, role}`. |
+| `GET` | `/api/auth/me` | Perfil do token atual (`leitor` ou `admin`). |
+| `POST` | `/api/auth/logout` | Sai do perfil de Administrador. |
 | `GET` | `/api/folders` | Lista os assuntos (pastas) e contagem de artigos. |
 | `GET` | `/api/documents` | Lista artigos indexados e contagem de chunks. |
 | `GET` | `/api/articles` | Lista os artigos arquivados no PostgreSQL (metadados). |
@@ -289,10 +289,7 @@ O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas
 | `DELETE` | `/api/folders/{folder}/documents/{nome}` | 🔒 Remove um artigo do índice. |
 | `DELETE` | `/api/folders/{folder}` | 🔒 Remove um assunto e seus artigos. |
 | `POST` | `/api/ask` | Recebe `{"question", "folder"?, "source"?, "history"?: [{question, answer}]}` e devolve `{answer, sources, scope, evaluation, standalone_question, used_memory, …}`. |
-| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `sources` → `queue`… → `meta` → `token`… → `done`. Com o login da turma, a pergunta é registrada e o `done` traz o `interaction_id`. |
-| `POST` | `/api/evaluations` | 👥 Registra a nota (1 a 5) e o comentário de uma resposta (`interaction_id`). |
-| `GET` | `/api/survey` | 👥 Afirmações do questionário e a resposta já enviada pela sessão. |
-| `POST` | `/api/survey` | 👥 Envia (ou substitui) o questionário: `{"answers": {id: nota}, "comment"}`. |
+| `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `sources` → `queue`… → `meta` → `token`… → `done`. |
 | `GET` | `/api/evaluations/summary` | 🔒 Indicadores agregados das notas. |
 | `GET` | `/api/survey/summary` | 🔒 Média e distribuição de cada afirmação do questionário. |
 | `GET` | `/api/interactions/summary` | 🔒 Totais da coleta (sessões, perguntas, tempo médio). |
@@ -312,8 +309,8 @@ tcc-alcides-murilo-1/
 │   ├── database.py          # engine/sessão SQLAlchemy + init_db()
 │   ├── models.py            # artigos, sessões, perguntas, notas, questionário
 │   ├── schemas.py           # modelos Pydantic de entrada/saída
-│   ├── dependencies.py      # get_rag() e perfis (leitor / participante / admin)
-│   ├── persistence.py       # log de fontes e registro das perguntas coletadas
+│   ├── dependencies.py      # get_rag() e perfis (leitor / admin)
+│   ├── persistence.py       # log das fontes usadas nas respostas
 │   ├── csv_export.py        # exportação CSV para o Excel
 │   ├── routers/             # auth, library, chat, evaluation, survey, interactions
 │   ├── rag/
@@ -323,6 +320,7 @@ tcc-alcides-murilo-1/
 │   │   ├── lexical.py       # tokenização e BM25
 │   │   ├── memory.py        # memória de pergunta
 │   │   ├── catalog.py       # perguntas sobre o acervo (lista de artigos)
+│   │   ├── smalltalk.py     # cumprimentos ("oi", "obrigado") sem o modelo
 │   │   ├── evaluation.py    # fundamentação automática
 │   │   └── prompts.py
 │   ├── document_processor.py
@@ -333,7 +331,7 @@ tcc-alcides-murilo-1/
 ├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── js/                  # módulos ES (api, auth, chat, memory, feedback, survey, evaluation…)
+│   └── js/                  # módulos ES (api, auth, chat, memory, feedback, evaluation…)
 ├── database/
 │   └── schema.sql           # esquema SQL (opcional; tabelas criadas pelo app)
 ├── data/

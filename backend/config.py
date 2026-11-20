@@ -133,26 +133,17 @@ DATABASE_URL = os.getenv(
 )
 
 # Perfis de acesso:
-#  - Leitor (padrão, sem login): apenas consulta; nada é registrado.
-#  - Participante (login da turma): consulta + avaliação. Usado por todos nos
-#    testes com usuários; cada login abre uma sessão anônima e as perguntas,
-#    respostas, notas e o questionário vão para o banco de registro.
-#  - Administrador: envio/gestão de artigos e acesso aos dados coletados.
-# As senhas ficam SÓ no .env (fora do Git). Não há senha padrão no código:
-# sem ADMIN_PASSWORD / PARTICIPANT_PASSWORD definida, aquele login fica
-# desativado em vez de aceitar uma senha conhecida.
+#  - Leitor (padrão, sem login): consulta os artigos; nada é registrado.
+#  - Administrador: envio/gestão de artigos e acesso aos dados já coletados nos
+#    testes com a turma (o login da turma foi retirado depois dos testes).
+# A senha fica SÓ no .env (fora do Git). Não há senha padrão no código: sem
+# ADMIN_PASSWORD definida, o login fica desativado em vez de aceitar uma senha
+# conhecida.
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
-PARTICIPANT_USER = os.getenv("PARTICIPANT_USER", "turma")
-PARTICIPANT_PASSWORD = os.getenv("PARTICIPANT_PASSWORD", "")
 
-# Coleta da pesquisa:
-#  - PARTICIPANT_QUESTION_LIMIT: perguntas por sessão do login da turma (0 = sem limite).
-#  - REQUIRE_LOGIN: "true" exige login para perguntar, sem o perfil Leitor.
-PARTICIPANT_QUESTION_LIMIT = int(os.getenv("PARTICIPANT_QUESTION_LIMIT", "3"))
-REQUIRE_LOGIN = os.getenv("REQUIRE_LOGIN", "false").lower() == "true"
-
-# Questionário de avaliação do sistema (afirmações de 1 a 5 estrelas).
+# Questionário de avaliação do sistema, respondido nos testes com a turma; as
+# afirmações dão nome às colunas do resumo, do CSV e da visão vw_questionario.
 SURVEY_FILE = EVALUATION_DIR / "questionario.json"
 
 

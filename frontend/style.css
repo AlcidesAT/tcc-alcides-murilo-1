@@ -348,7 +348,6 @@ button { font-family: inherit; cursor: pointer; }
     flex-shrink: 0;
 }
 body.role-admin .profile-dot { background: #7ef0a8; box-shadow: 0 0 6px rgba(126, 240, 168, 0.7); }
-body.role-participante .profile-dot { background: #f5c35b; box-shadow: 0 0 6px rgba(245, 195, 91, 0.7); }
 .profile-btn {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
@@ -362,10 +361,7 @@ body.role-participante .profile-dot { background: #f5c35b; box-shadow: 0 0 6px r
 .profile-btn:hover { background: rgba(255, 255, 255, 0.22); }
 
 /* Elementos exclusivos do Administrador — ocultos para o Leitor */
-/* Cada perfil vê só o que é dele: .admin-only (Administrador) e
-   .participant-only (login da turma). */
 body:not(.role-admin) .admin-only { display: none !important; }
-body:not(.role-participante) .participant-only { display: none !important; }
 body:not(.role-admin) .folder-del,
 body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 
@@ -1062,29 +1058,6 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .question-models-more:hover { border-color: var(--green); }
 .question-models-more[hidden] { display: none; }
 
-.composer[hidden] { display: none; }
-.question-quota {
-    margin: 0 6px 6px;
-    text-align: right;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--green-deep);
-}
-.quota-done {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 12px 14px;
-    font-size: 0.9rem;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-}
-.quota-done[hidden] { display: none; }
-
 .disclaimer {
     text-align: center;
     color: var(--muted);
@@ -1205,60 +1178,6 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .quality-badge.level-acervo { background: #e2f0f2; color: var(--teal); border-color: #bcdbe0; }
 .quality-badge.level-fora { background: var(--elevated); color: var(--muted); border-color: var(--border); }
 
-.feedback {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
-    font-size: 0.78rem;
-    color: var(--muted);
-}
-.stars { display: inline-flex; }
-.star {
-    background: none;
-    border: none;
-    padding: 0 1px;
-    font-size: 1.05rem;
-    line-height: 1;
-    color: #c9d6d2;
-    transition: color 0.1s, transform 0.05s;
-}
-.star.on { color: #e9a92b; }
-.star:active { transform: scale(0.9); }
-.feedback-hint { min-width: 110px; font-size: 0.72rem; }
-.feedback-extra {
-    flex-basis: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 6px;
-}
-.feedback-extra[hidden] { display: none; }
-.feedback-extra textarea {
-    flex: 1 1 260px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 6px 10px;
-    resize: vertical;
-}
-.feedback-extra textarea:focus { outline: none; border-color: var(--green); }
-.feedback-send {
-    background: var(--grad-soft);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 7px 14px;
-    font-size: 0.78rem;
-    font-weight: 600;
-}
-.feedback-send:disabled { opacity: 0.5; cursor: not-allowed; }
-.feedback-status { flex-basis: 100%; font-size: 0.72rem; }
-.feedback-status.error { color: var(--danger); }
-.feedback-done { color: var(--green-deep); font-weight: 600; }
-
 /* ================= Avaliação das respostas (sidebar admin) ============ */
 .eval-summary { margin-bottom: 10px; font-size: 0.78rem; color: rgba(255, 255, 255, 0.85); }
 .eval-summary .empty {
@@ -1292,133 +1211,6 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .eval-models { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.7rem; }
 .eval-models li { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; }
 .eval-model { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255, 255, 255, 0.85); }
-
-/* ===================== Login da turma (participante) ================== */
-.topbar-actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.collect-pill {
-    font-size: 0.72rem;
-    color: #8a5a00;
-    background: #fdf3dc;
-    border: 1px solid #f2dca6;
-    border-radius: 999px;
-    padding: 3px 10px;
-    cursor: help;
-    white-space: nowrap;
-}
-.survey-open {
-    background: var(--grad-soft);
-    color: #fff;
-    border: none;
-    border-radius: 999px;
-    padding: 7px 14px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-.survey-open:hover { opacity: 0.92; }
-.collected-note { font-size: 0.7rem; color: var(--muted); }
-.collected-note::before { content: "● "; color: #e9a92b; }
-
-/* ============================ Questionário ============================ */
-.survey {
-    width: 100%;
-    max-width: 720px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-}
-.survey-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-}
-.survey-head h3 { margin: 0; font-size: 1.05rem; color: var(--text); }
-.survey-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
-.survey-intro { margin: 0 0 12px; font-size: 0.88rem; color: var(--muted); }
-.survey-previous {
-    margin: 0 0 12px;
-    font-size: 0.8rem;
-    color: var(--green-deep);
-    background: var(--elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
-}
-.survey-items { list-style: none; margin: 0 0 16px; padding: 0; counter-reset: item; }
-.survey-item {
-    counter-increment: item;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 10px;
-    border-bottom: 1px solid var(--border);
-    border-radius: 8px;
-}
-.survey-item.missing { background: #fde6e5; }
-.survey-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.9rem;
-    color: var(--text);
-}
-.survey-text::before {
-    content: counter(item) ".";
-    font-size: 0.72rem;
-    color: var(--muted);
-}
-.survey-criterio {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: var(--green-deep);
-}
-.survey-rate {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 150px;
-}
-.survey-rate .star { font-size: 1.45rem; padding: 0 2px; }
-.survey-rate .feedback-hint { min-width: 0; min-height: 1.1em; text-align: center; color: var(--muted); }
-.survey-comment-label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; }
-#survey-comment {
-    width: 100%;
-    font-family: inherit;
-    font-size: 0.88rem;
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 8px 12px;
-    resize: vertical;
-}
-#survey-comment:focus { outline: none; border-color: var(--green); }
-.survey-foot {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    border-top: 1px solid var(--border);
-}
-.survey-status { flex: 1; font-size: 0.8rem; color: var(--muted); }
-.survey-status.error { color: var(--danger); }
-.survey-thanks { text-align: center; padding: 30px 10px; }
-.survey-thanks-mark { font-size: 2.4rem; color: #e9a92b; }
-.survey-thanks h4 { margin: 8px 0 6px; font-size: 1.1rem; }
-.survey-thanks p { margin: 0; color: var(--muted); }
 
 /* Resumo do questionário no painel do admin */
 .eval-subhead {
@@ -1456,8 +1248,6 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
         box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
     }
     .app:not(.sidebar-hidden) .open-sidebar { display: none; }
-    .collect-pill { display: none; }
-    .survey-item { flex-direction: column; align-items: stretch; }
     /* No celular os modelos ficam numa linha que rola para o lado. */
     .question-models { flex-wrap: nowrap; }
     .question-models-label { display: none; }
