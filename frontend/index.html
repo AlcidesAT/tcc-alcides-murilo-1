@@ -65,24 +65,18 @@
                         <span>Coleta da pesquisa</span>
                         <button id="eval-refresh" class="icon-btn" title="Atualizar">↻</button>
                     </div>
-                    <div id="collection-summary" class="eval-summary"></div>
-
-                    <div class="eval-subhead">Notas das respostas</div>
-                    <div id="eval-summary" class="eval-summary">
-                        <p class="empty">Nenhuma avaliação ainda.</p>
-                    </div>
-
-                    <div class="eval-subhead">Questionário</div>
-                    <div id="survey-summary" class="eval-summary">
-                        <p class="empty">Nenhum questionário respondido ainda.</p>
-                    </div>
-
-                    <div class="eval-exports">
-                        <span>Exportar CSV:</span>
-                        <button class="mini-btn export-btn" data-path="/api/interactions/export" data-file="perguntas-coletadas.csv">Perguntas</button>
-                        <button class="mini-btn export-btn" data-path="/api/evaluations/export" data-file="avaliacoes-respostas.csv">Notas</button>
-                        <button class="mini-btn export-btn" data-path="/api/survey/export" data-file="questionario-avaliacao.csv">Questionário</button>
-                    </div>
+                    <!-- Números principais; o restante fica em "Ver detalhes" -->
+                    <div id="eval-key" class="eval-summary"></div>
+                    <details class="eval-details">
+                        <summary>Ver detalhes</summary>
+                        <div id="eval-details-body" class="eval-summary"></div>
+                        <div class="eval-subhead">Exportar CSV</div>
+                        <div class="eval-exports">
+                            <button class="mini-btn export-btn" data-path="/api/interactions/export" data-file="perguntas-coletadas.csv">Perguntas</button>
+                            <button class="mini-btn export-btn" data-path="/api/evaluations/export" data-file="avaliacoes-respostas.csv">Notas</button>
+                            <button class="mini-btn export-btn" data-path="/api/survey/export" data-file="questionario-avaliacao.csv">Questionário</button>
+                        </div>
+                    </details>
                 </section>
             </div>
 

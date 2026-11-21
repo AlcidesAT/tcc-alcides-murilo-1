@@ -1200,6 +1200,18 @@ body:not(.role-admin) .folder-docs .del-btn { display: none !important; }
 .eval-tile strong { font-size: 1.05rem; color: #fff; }
 .eval-tile strong small { font-size: 0.7rem; font-weight: 500; opacity: 0.7; }
 .eval-tile span { font-size: 0.68rem; color: rgba(255, 255, 255, 0.7); }
+.eval-tile em { font-size: 0.62rem; font-style: normal; color: rgba(255, 255, 255, 0.5); }
+/* "Ver detalhes": o que não é número principal fica recolhido */
+.eval-details { margin-bottom: 10px; }
+.eval-details summary {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    padding: 2px 0 6px;
+}
+.eval-details summary:hover { color: #fff; }
+.eval-details[open] summary { margin-bottom: 2px; }
 .eval-bars { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
 .eval-bar { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
 .eval-bar > span:first-child { width: 22px; }
