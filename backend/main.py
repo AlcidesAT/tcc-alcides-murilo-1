@@ -6,7 +6,7 @@ rotas (em `routers/`) e o front-end estático. A lógica de recuperação, gera�
 memória e avaliação fica no pacote `rag/`.
 
 Perfis de acesso: Leitor (consulta, padrão) e Administrador (envio e gestão de
-artigos e acesso aos dados coletados nos testes com a turma).
+artigos).
 """
 
 from contextlib import asynccontextmanager
@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from config import BASE_DIR, DOCUMENTS_DIR, LLM_MODEL
 from database import init_db
 from dependencies import get_rag
-from routers import auth, chat, evaluation, interactions, library, survey
+from routers import auth, chat, library
 
 
 @asynccontextmanager
@@ -70,9 +70,6 @@ def health():
 app.include_router(auth.router)
 app.include_router(library.router)
 app.include_router(chat.router)
-app.include_router(evaluation.router)
-app.include_router(survey.router)
-app.include_router(interactions.router)
 
 
 # ---------------------------------------------------------------------------

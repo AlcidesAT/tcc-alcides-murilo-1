@@ -226,39 +226,3 @@ export async function askStream(
         }
     }
 }
-
-// ---------------------------------------------------------------------------
-// Dados coletados nos testes com a turma (Administrador)
-// ---------------------------------------------------------------------------
-
-export function getEvaluationSummary() {
-    return request("/api/evaluations/summary", { headers: authHeaders() });
-}
-
-export function getSurveySummary() {
-    return request("/api/survey/summary", { headers: authHeaders() });
-}
-
-export function getCollectionSummary() {
-    return request("/api/interactions/summary", { headers: authHeaders() });
-}
-
-/** Baixa um CSV exclusivo do admin (precisa do cabeçalho, por isso via fetch). */
-export async function downloadCsv(path, filename) {
-    const res = await fetch(path, { headers: authHeaders() });
-    if (!res.ok) {
-        let detail = `Erro HTTP ${res.status}`;
-        try {
-            detail = (await res.json()).detail || detail;
-        } catch {
-            /* corpo não-JSON */
-        }
-        throw new Error(detail);
-    }
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-}

@@ -1,7 +1,7 @@
 /**
  * Ponto de entrada da aplicação.
  *
- * Aqui as seções (pastas, upload, chat e dados coletados) são inicializadas e
+ * Aqui as seções (pastas, upload e chat) são inicializadas e
  * conectadas ao estado global. O fluxo é:
  *
  *   1. Cada módulo "init*" registra seus eventos de UI.
@@ -16,7 +16,6 @@ import { initReader } from "./reader.js";
 import { initFolders, loadFolders, renderFolders } from "./folders.js";
 import { initUpload, updateFolderSelector } from "./upload.js";
 import { initChat, updateScopeSelectors } from "./chat.js";
-import { initEvaluation } from "./evaluation.js";
 import { initHelp, renderHelp } from "./help.js";
 
 initAuth();
@@ -25,7 +24,6 @@ initReader();
 initFolders();
 initUpload();
 initChat();
-initEvaluation();
 initHelp();
 
 subscribe((state) => {

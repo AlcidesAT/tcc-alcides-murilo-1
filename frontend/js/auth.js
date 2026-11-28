@@ -2,8 +2,7 @@
  * Perfis de acesso: Leitor (padrão) e Administrador.
  *
  * O Leitor só consulta os artigos indexados; nada é registrado.
- * O Administrador envia, organiza e indexa artigos e acessa os dados coletados
- * nos testes com a turma.
+ * O Administrador envia, organiza e indexa artigos.
  *
  * A visibilidade das funcionalidades de cada perfil é controlada por uma classe
  * no <body> (`role-leitor` / `role-admin`); o CSS mostra os elementos
@@ -57,21 +56,13 @@ export async function initAuth() {
     if (role !== document.body.dataset.role) applyRole();
 }
 
-/**
- * Reflete o perfil atual no <body> e no rótulo/botão da sidebar e avisa os
- * demais módulos pelo evento "rolechange" (painel dos dados coletados).
- */
+/** Reflete o perfil atual no <body> e no rótulo/botão da sidebar. */
 function applyRole() {
     const role = api.getRole();
     document.body.dataset.role = role;
     Object.keys(ROLE_LABELS).forEach((r) => document.body.classList.toggle(`role-${r}`, r === role));
     profileRole.textContent = ROLE_LABELS[role];
     profileBtn.textContent = role === "leitor" ? "Entrar" : "Sair";
-    document.dispatchEvent(
-        new CustomEvent("rolechange", {
-            detail: { role, admin: role === "admin" },
-        }),
-    );
 }
 
 function openModal() {

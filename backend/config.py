@@ -143,7 +143,7 @@ ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 # Questionário de avaliação do sistema, respondido nos testes com a turma; as
-# afirmações dão nome às colunas do resumo, do CSV e da visão vw_questionario.
+# afirmações dão nome às colunas da visão vw_questionario.
 SURVEY_FILE = EVALUATION_DIR / "questionario.json"
 
 

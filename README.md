@@ -15,9 +15,6 @@ FastAPI (backend/main.py)  — só monta o app
    routers/auth.py          login do Administrador
    routers/library.py       assuntos, artigos, upload, remoção
    routers/chat.py          perguntas (com histórico) e streaming
-   routers/evaluation.py    notas coletadas: resumo e CSV
-   routers/survey.py        questionário coletado: resumo e CSV
-   routers/interactions.py  perguntas coletadas: resumo e CSV
         |
         v
 rag/service.py (RAGService)
@@ -46,7 +43,7 @@ A separação em dois módulos — **recuperação** e **geração** — segue e
 | Banco de dados | PostgreSQL (metadados, log de fontes e avaliações via SQLAlchemy) |
 | Frontend | HTML, CSS e JavaScript puros |
 
-> **Perfis de acesso**: o sistema tem dois perfis. O **Leitor** (padrão, sem login) consulta os artigos indexados; nada é registrado. O **Administrador** envia, organiza e indexa artigos e acessa os dados coletados nos testes com a turma (veja [Testes com usuários](#testes-com-usuários-encerrados)). O login fica no `.env` (`ADMIN_USER`/`ADMIN_PASSWORD`); para entrar, clique em **"Entrar"** no rodapé do menu lateral.
+> **Perfis de acesso**: o sistema tem dois perfis. O **Leitor** (padrão, sem login) consulta os artigos indexados; nada é registrado. O **Administrador** envia, organiza e indexa artigos. O login fica no `.env` (`ADMIN_USER`/`ADMIN_PASSWORD`); para entrar, clique em **"Entrar"** no rodapé do menu lateral.
 
 > **Sobre o "EasyRAG"**: no projeto, a recuperação simples e direta proposta no TCC é implementada com os componentes nativos do LangChain (`Chroma` como vector store + `as_retriever`), formando um pipeline RAG enxuto e fácil de manter. Caso queira substituir por uma biblioteca específica, basta trocar a implementação dentro de [backend/rag/retrieval.py](backend/rag/retrieval.py) — o restante do sistema permanece igual.
 
@@ -182,11 +179,11 @@ O banco e o Ollama não ficam expostos fora do Docker; só a aplicação abre um
 4. **Para enviar/gerenciar artigos** (perfil Administrador): clique em **"Entrar"** no rodapé do menu lateral e informe o usuário e a senha do administrador (`ADMIN_USER`/`ADMIN_PASSWORD`). As seções de criação de assuntos e envio de artigos passam a aparecer.
 5. Como Administrador, crie um assunto, selecione-o, arraste ou clique para escolher os arquivos (PDF/MD/TXT) e clique em **"Indexar artigos"**. A primeira indexação pode demorar enquanto os embeddings são calculados.
 6. Para voltar ao perfil Leitor, clique em **"Sair"** no mesmo local.
-7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática). Como Administrador, a seção **"Coleta da pesquisa"** do menu lateral mostra os dados coletados nos testes com a turma e exporta tudo em CSV.
+7. Abaixo de cada resposta há um **selo de confiança** (fundamentação automática).
 
 ## Testes com usuários (encerrados)
 
-Na aplicação com a turma, todos usaram o mesmo **login da turma**. Cada entrada abria uma **sessão anônima** no banco, com um limite de perguntas por sessão; as perguntas, as respostas, as notas de 1 a 5 estrelas e o questionário de avaliação eram registrados. Com os testes concluídos, o login da turma, o limite de perguntas, as estrelas e o questionário foram retirados do sistema. Os dados coletados continuam no banco e o Administrador os consulta e exporta (veja abaixo).
+Na aplicação com a turma, todos usaram o mesmo **login da turma**. Cada entrada abria uma **sessão anônima** no banco, com um limite de perguntas por sessão; as perguntas, as respostas, as notas de 1 a 5 estrelas e o questionário de avaliação eram registrados. Com os testes concluídos, o login da turma, o limite de perguntas, as estrelas e o questionário foram retirados do sistema. Os dados coletados continuam no banco (veja abaixo).
 
 **Várias pessoas ao mesmo tempo.** A busca não usa o modelo que escreve o texto, então os trechos aparecem logo, e só a escrita da resposta entra numa fila por ordem de chegada. Quem espera vê a própria posição, pode ler os artigos e não ocupa o servidor; quem desiste sai da fila sem gastar o modelo. `LLM_MAX_CONCURRENT` define quantas respostas são pedidas ao modelo por vez (2 por padrão). A velocidade da fila depende da máquina e do tamanho das respostas: num Xeon E5-2680 v4 com placa AMD Polaris de 8 GB, 120 perguntas simultâneas levaram cerca de 14 minutos com `OLLAMA_NUM_PARALLEL=1` e cerca de 9 minutos com `OLLAMA_NUM_PARALLEL=2`, com respostas típicas de 530 caracteres; com `OLLAMA_NUM_PARALLEL=2` e respostas típicas de 1.080 caracteres, cerca de 16 minutos. As respostas vão até `ANSWER_MAX_CHARS` (900 caracteres): o prompt pede um parágrafo longo, de pelo menos 8 frases, com o objetivo, o método, os resultados e as conclusões, e esse pedido vem depois dos trechos, onde o modelo o segue melhor. O sistema interrompe o modelo se ele passar do limite, terminando na última frase completa. Assim a fila anda mais rápido, e uma resposta sem fim não a prende.
 
@@ -211,9 +208,9 @@ Durante os testes com a turma, o sistema registrou:
 
 Para abrir a coleta num cliente de banco (DBeaver, psql), o app cria ao iniciar duas visões só de leitura: `vw_perguntas_turma` (uma linha por pergunta da turma, com a resposta, as métricas, os artigos e a nota dada) e `vw_questionario` (uma linha por participante, uma coluna de 1 a 5 por afirmação, com o texto da afirmação no comentário da coluna). Os dados continuam nas tabelas acima. As colunas de `vw_questionario` seguem o `questionario.json` lido na inicialização: depois de acrescentar ou retirar afirmações, reinicie o servidor para a visão acompanhar.
 
-**Questionário de avaliação.** Ao final, cada participante avaliou afirmações de 1 a 5 estrelas, numa escala de concordância (1 = discordo totalmente, 5 = concordo totalmente), e um comentário final. As afirmações cobrem os critérios da pesquisa: relevância, precisão, clareza, confiança nas fontes, memória de pergunta, tempo de resposta, facilidade de uso e utilidade. Elas ficam em [data/evaluation/questionario.json](data/evaluation/questionario.json), que dá nome às colunas do resumo, do CSV e da visão `vw_questionario`; a `versao` do arquivo foi gravada com cada resposta.
+**Questionário de avaliação.** Ao final, cada participante avaliou afirmações de 1 a 5 estrelas, numa escala de concordância (1 = discordo totalmente, 5 = concordo totalmente), e um comentário final. As afirmações cobrem os critérios da pesquisa: relevância, precisão, clareza, confiança nas fontes, memória de pergunta, tempo de resposta, facilidade de uso e utilidade. Elas ficam em [data/evaluation/questionario.json](data/evaluation/questionario.json), que dá nome às colunas da visão `vw_questionario`; a `versao` do arquivo foi gravada com cada resposta.
 
-**Dados para a análise.** Como Administrador, a seção **"Coleta da pesquisa"** mostra o total de sessões, perguntas e o tempo médio de resposta; a nota média e a distribuição das estrelas; e a média de cada afirmação do questionário. Os botões **Exportar CSV** baixam três planilhas (separadas por `;`, prontas para o Excel): **Perguntas** (cada pergunta com a resposta e a nota recebida), **Notas** e **Questionário** (uma linha por participante, uma coluna por afirmação). A coluna `sessao` identifica o participante de forma anônima em todas elas.
+**Dados para a análise.** A interface não mostra nem exporta mais a coleta: os dados são lidos pelas visões acima, e um cliente de banco (DBeaver, psql) as exporta em CSV. A coluna `sessao` identifica o participante de forma anônima.
 
 ## Memória de pergunta
 
@@ -248,7 +245,7 @@ A precisão é avaliada em três frentes complementares:
 
 > **Limitação conhecida:** a fundamentação verifica se cada frase se apoia em *algum* dos trechos recuperados, não necessariamente no artigo certo. Se o modelo misturar dois artigos (ex.: citar o delineamento de um estudo de alface ao responder sobre o milho), a frase ainda conta como fundamentada. Por isso a métrica automática complementa, e não substitui, a nota humana e o benchmark.
 
-**2. Avaliação humana.** Nos testes com a turma, cada participante deu às respostas uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário, e ao final respondeu o questionário de avaliação do sistema (veja [Testes com usuários](#testes-com-usuários-encerrados)). A nota é gravada em `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos. O Administrador vê o resumo no menu lateral (nota média, % de respostas precisas com nota ≥ 4, fundamentação média, distribuição das notas e resultados por modelo) e exporta os dados em CSV.
+**2. Avaliação humana.** Nos testes com a turma, cada participante deu às respostas uma nota de 1 (totalmente imprecisa) a 5 (totalmente precisa) e, opcionalmente, um comentário, e ao final respondeu o questionário de avaliação do sistema (veja [Testes com usuários](#testes-com-usuários-encerrados)). A nota é gravada em `answer_evaluations` junto do par pergunta/resposta, das fontes, das métricas automáticas e do modelo usado. Isso permite comparar a nota humana com a fundamentação medida e comparar modelos.
 
 **3. Benchmark offline** ([backend/evaluate.py](backend/evaluate.py)). Um conjunto de perguntas de referência com os artigos esperados ([data/evaluation/perguntas.json](data/evaluation/perguntas.json)) mede, de forma reprodutível:
 
@@ -290,12 +287,6 @@ O token recebido em `/api/auth/login` vai no cabeçalho `X-Auth-Token`. As rotas
 | `DELETE` | `/api/folders/{folder}` | 🔒 Remove um assunto e seus artigos. |
 | `POST` | `/api/ask` | Recebe `{"question", "folder"?, "source"?, "history"?: [{question, answer}]}` e devolve `{answer, sources, scope, evaluation, standalone_question, used_memory, …}`. |
 | `POST` | `/api/ask/stream` | Igual ao anterior, em streaming NDJSON: eventos `sources` → `queue`… → `meta` → `token`… → `done`. |
-| `GET` | `/api/evaluations/summary` | 🔒 Indicadores agregados das notas. |
-| `GET` | `/api/survey/summary` | 🔒 Média e distribuição de cada afirmação do questionário. |
-| `GET` | `/api/interactions/summary` | 🔒 Totais da coleta (sessões, perguntas, tempo médio). |
-| `GET` | `/api/interactions/export` | 🔒 Perguntas coletadas em CSV (`;`, UTF-8 com BOM). |
-| `GET` | `/api/evaluations/export` | 🔒 Notas das respostas em CSV. |
-| `GET` | `/api/survey/export` | 🔒 Questionários em CSV (uma coluna por afirmação). |
 
 A documentação interativa fica em <http://127.0.0.1:8000/docs>.
 
@@ -311,8 +302,7 @@ tcc-alcides-murilo-1/
 │   ├── schemas.py           # modelos Pydantic de entrada/saída
 │   ├── dependencies.py      # get_rag() e perfis (leitor / admin)
 │   ├── persistence.py       # log das fontes usadas nas respostas
-│   ├── csv_export.py        # exportação CSV para o Excel
-│   ├── routers/             # auth, library, chat, evaluation, survey, interactions
+│   ├── routers/             # auth, library, chat
 │   ├── rag/
 │   │   ├── service.py       # RAGService: prepare → gerar → avaliar
 │   │   ├── queue.py         # fila de geração das respostas
@@ -365,6 +355,5 @@ tcc-alcides-murilo-1/
 
 ## Próximos passos (alinhados ao cronograma do TCC)
 
-- Aplicar o sistema com a turma de usuários e coletar as avaliações de precisão pela interface (exportáveis em CSV).
 - Ampliar o conjunto de perguntas de referência e comparar modelos (`LLM_MODEL`) e parâmetros com `evaluate.py`.
 - Avaliar variações do RAG (re-ranking) e comparar as métricas com a configuração atual.
